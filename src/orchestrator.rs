@@ -26,6 +26,8 @@ impl Orchestrator {
 
     pub fn run() -> Result<(), RulesError> {
         let mut orch: Orchestrator = Orchestrator::default();
+
+        // Initial parsing and orchestator mutation
         orch.initialise_tags()?;
         orch.initialise_objects()?;
 

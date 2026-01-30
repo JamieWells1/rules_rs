@@ -5,23 +5,25 @@ Rule engine written in Rust for parsing and evaluating rules, with customisable 
 ## Contents
 
 - [Rule Engine](#rule-engine)
-   - [Contents](#contents)
+  - [Contents](#contents)
 - [Rule DSL (Domain-Specific Language)](#rule-dsl-domain-specific-language)
-   - [Operators](#operators)
-   - [Examples](#examples)
+  - [Operators](#operators)
+  - [Examples](#examples)
 - [Config Files](#config-files)
-   - [1. Tags File (`.tags`)](#1-tags-file-tags)
-   - [2. Rules File (`.rules`)](#2-rules-file-rules)
-   - [3. Objects File (`.yaml`)](#3-objects-file-yaml)
+  - [1. Tags File (`.tags`)](#1-tags-file-tags)
+  - [2. Rules File (`.rules`)](#2-rules-file-rules)
+  - [3. Objects File (`.yaml`)](#3-objects-file-yaml)
 - [Parsing Rules](#parsing-rules)
 - [Engine Design](#engine-design)
-   - [Step 1: Convert to Disjunctive Normal Form (DNF)](#step-1-convert-to-disjunctive-normal-form-dnf)
-   - [Step 2: Build Subrule Metadata](#step-2-build-subrule-metadata)
-   - [Step 3: Create Tag-to-Subrule Maps](#step-3-create-tag-to-subrule-maps)
-   - [Step 4: Match Objects Against Rules](#step-4-match-objects-against-rules)
-   - [Step 5: Determine Match Result](#step-5-determine-match-result)
+  - [Step 1: Convert to Disjunctive Normal Form (DNF)](#step-1-convert-to-disjunctive-normal-form-dnf)
+  - [Step 2: Build Subrule Metadata](#step-2-build-subrule-metadata)
+  - [Step 3: Create Tag-to-Subrule Maps](#step-3-create-tag-to-subrule-maps)
+  - [Step 4: Match Objects Against Rules](#step-4-match-objects-against-rules)
+  - [Step 5: Determine Match Result](#step-5-determine-match-result)
 
 ---
+
+> **Note**: Easy to understand, correctly configured config files are already present if you'd like to get started right away.
 
 # Rule DSL (Domain-Specific Language)
 
@@ -125,20 +127,46 @@ Contains the actual matching rules written in the DSL syntax.
 
 ## 3. Objects File (`.yaml`)
 
-Contains objects to be evaluated against the rules.
+Contains objects to be evaluated against the rules. Objects are grouped by type for flexibility.
 
 **File:** `config/objects.yaml`
 
 ```yaml
 objects:
-  - colour: [red, green]
-    shape: rectangle
-    size: large
+  shapes:
+    - colour: [red, green]
+    - shape: rectangle
+    - size: large
 
-  - colour: green
-    shape: circle
-    size: small
+    - colour: green
+    - shape: circle
+    - size: small
+
+  cars:
+    - colour: grey
+    - size: small
+    - doors: 3
+
+    - colour: black
+    - size: large
+    - doors: 5
 ```
+
+**Adding new object types:**
+
+Simply add a new key under `objects` with a list of items. Each type can have completely different attributes:
+
+```yaml
+objects:
+  your_type_name:
+    - attribute1: value1
+      attribute2: value2
+
+    - attribute1: value3
+      attribute2: value4
+```
+
+The type name (e.g., `shapes`, `cars`) is automatically assigned to each object in that group.
 
 ---
 

@@ -2,13 +2,24 @@
 
 config:
   # define whether to use defined objects or generate them randomly
-  - use_defined_objects: true
+  - generate_objects: true
+  - objects_to_generate: 100
 
 objects:
-  - colour: [red, green]
-    shape: rectangle
-    size: large
+  shapes:
+    - colour: [red, green]
+    - shape: rectangle
+    - size: large
 
-  - colour: green
-    shape: circle
-    size: small
+    - colour: green
+    - shape: circle
+    - size: small
+
+  cars:
+    - colour: grey
+    - size: small
+    - doors: 3
+
+    - colour: black
+    - size: large
+    - doors: 5
