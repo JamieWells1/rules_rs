@@ -2,6 +2,8 @@
 
 A comprehensive rules engine for evaluating rules against items.
 
+---
+
 ## Rule DSL (Domain-Specific Language)
 
 A simple, concise syntax for writing matching rules.
@@ -15,57 +17,65 @@ A simple, concise syntax for writing matching rules.
 - `()` - grouping for precedence
 - `,` - shorthand for OR within the same field (e.g. `color=red | color=blue` becomes `color=red,blue`)
 
-### Syntax Rules
-
-- No quotes needed around values
-- Spaces are optional and ignored
-- Parentheses control evaluation order
-
 ### Examples
 
 **Simple equality:**
+
 ```
 color=red
 ```
 
 **AND condition:**
+
 ```
 color=red & size=large
 ```
 
 **OR condition:**
+
 ```
 color=red | color=blue
 ```
 
 **OR shorthand (comma):**
+
 ```
 color=red,blue
 ```
+
 Equivalent to: `color=red | color=blue`
 
 **NOT condition:**
+
 ```
 color!red
 ```
 
 **Complex grouping:**
+
 ```
 (color=red,blue) & size!small
 ```
+
 Matches: color is red OR blue, AND size is NOT small
 
 **Nested logic:**
+
 ```
 status=active & (priority=high | type=urgent)
 ```
+
 Matches: status is active AND (priority is high OR type is urgent)
 
 **Multiple field conditions:**
+
 ```
 (type=admin,moderator) & status=active & role!guest
 ```
+
 Matches: type is admin OR moderator, AND status is active, AND role is NOT guest
+
+---
 
 ## Config Files
 
@@ -76,6 +86,7 @@ The rules engine uses three configuration files in the `config/` directory:
 Defines available tags (fields) and their possible values.
 
 **File:** `config/my_tags.tags`
+
 ```
 # Define the tags and their possible values to be used in rules
 
@@ -89,6 +100,7 @@ Defines available tags (fields) and their possible values.
 Contains the actual matching rules written in the DSL syntax.
 
 **File:** `config/my_rules.rules`
+
 ```
 # Define rules
 
@@ -101,6 +113,7 @@ Contains the actual matching rules written in the DSL syntax.
 Contains items to be evaluated against the rules.
 
 **File:** `config/objects.yaml`
+
 ```yaml
 # Objects to be evaluated against defined rules
 
@@ -113,6 +126,8 @@ items:
     shape: circle
     size: small
 ```
+
+---
 
 ## Parsing Rules
 
