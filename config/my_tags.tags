@@ -1,0 +1,5 @@
+# Define the tags and their possible values to be used in rules
+
+- Colour: Blue, Green, Red
+- Shape: Circle, Rectangle, Square
+- Size: Small, Medium, Large

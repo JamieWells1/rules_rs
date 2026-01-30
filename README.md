@@ -67,6 +67,60 @@ Matches: status is active AND (priority is high OR type is urgent)
 ```
 Matches: type is admin OR moderator, AND status is active, AND role is NOT guest
 
+## Config Files
+
+The rules engine uses three configuration files in the `config/` directory:
+
+### 1. Tags File (`.tags`)
+
+Defines available tags (fields) and their possible values.
+
+**File:** `config/my_tags.tags`
+```
+# Define the tags and their possible values to be used in rules
+
+- Colour: Blue, Green, Red
+- Shape: Circle, Rectangle, Square
+- Size: Small, Medium, Large
+```
+
+### 2. Rules File (`.rules`)
+
+Contains the actual matching rules written in the DSL syntax.
+
+**File:** `config/my_rules.rules`
+```
+# Define rules
+
+- (colour=blue,red) & shape!circle
+- (colour=green) | shape=rectangle
+```
+
+### 3. Objects File (`.yaml`)
+
+Contains items to be evaluated against the rules.
+
+**File:** `config/objects.yaml`
+```yaml
+# Objects to be evaluated against defined rules
+
+items:
+  - colour: [red, green]
+    shape: rectangle
+    size: large
+
+  - colour: green
+    shape: circle
+    size: small
+```
+
+## Parsing Rules
+
+- **Comments:** Use `#` for comments in all config files
+- **Case-insensitive:** All parsing is case-insensitive
+- **No quotes:** Values don't require quotes
+- **Spaces:** Optional and ignored in rules
+
 ---
 
 ## Engine Design

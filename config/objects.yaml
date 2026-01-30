@@ -1,0 +1,10 @@
+# Objects to be evualated against defined rules
+
+items:
+  - colour: [red, green]
+    shape: rectangle
+    size: large
+    
+  - colour: green
+    shape: circle
+    size: small
