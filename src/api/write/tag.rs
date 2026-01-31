@@ -23,7 +23,11 @@ pub fn write(file_name: &str, tag_name: String, tag_values: Vec<String>) -> Resu
     }
 
     if !tag_exists {
-        lines.push(format!("\n- {}: {}", tag_name.trim(), tag_values.join(", ")));
+        lines.push(format!(
+            "\n- {}: {}",
+            tag_name.trim(),
+            tag_values.join(", ")
+        ));
     }
 
     std::fs::write(&format!("config/{}", file_name), lines.join("\n"))?;

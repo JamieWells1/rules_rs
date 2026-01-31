@@ -62,10 +62,10 @@ fn test_write_tag_invalid_tag_no_colon() {
     let result = write_tag(test_file, "Size".to_string(), vec!["Small".to_string()]);
 
     assert!(result.is_err());
-    if let Err(RulesError::ParseError(msg)) = result {
+    if let Err(RulesError::TagParseError(msg)) = result {
         assert!(msg.contains("must contain a ':' separator"));
     } else {
-        panic!("Expected ParseError");
+        panic!("Expected TagParseError");
     }
 
     // Cleanup
@@ -84,10 +84,10 @@ fn test_write_tag_invalid_tag_no_dash() {
     let result = write_tag(test_file, "Size".to_string(), vec!["Small".to_string()]);
 
     assert!(result.is_err());
-    if let Err(RulesError::ParseError(msg)) = result {
+    if let Err(RulesError::TagParseError(msg)) = result {
         assert!(msg.contains("Tag must begin with '-'"));
     } else {
-        panic!("Expected ParseError with '-' message");
+        panic!("Expected TagParseError with '-' message");
     }
 
     // Cleanup
@@ -106,10 +106,10 @@ fn test_write_tag_invalid_tag_name_with_spaces() {
     let result = write_tag(test_file, "Size".to_string(), vec!["Small".to_string()]);
 
     assert!(result.is_err());
-    if let Err(RulesError::ParseError(msg)) = result {
+    if let Err(RulesError::TagParseError(msg)) = result {
         assert!(msg.contains("Tag name cannot contain spaces"));
     } else {
-        panic!("Expected ParseError about tag name spaces");
+        panic!("Expected TagParseError about tag name spaces");
     }
 
     // Cleanup
@@ -128,10 +128,10 @@ fn test_write_tag_invalid_value_with_middle_spaces() {
     let result = write_tag(test_file, "Size".to_string(), vec!["Small".to_string()]);
 
     assert!(result.is_err());
-    if let Err(RulesError::ParseError(msg)) = result {
+    if let Err(RulesError::TagParseError(msg)) = result {
         assert!(msg.contains("Tag values cannot contain spaces"));
     } else {
-        panic!("Expected ParseError about value spaces");
+        panic!("Expected TagParseError about value spaces");
     }
 
     // Cleanup
@@ -150,10 +150,10 @@ fn test_write_tag_multiple_colons() {
     let result = write_tag(test_file, "Size".to_string(), vec!["Small".to_string()]);
 
     assert!(result.is_err());
-    if let Err(RulesError::ParseError(msg)) = result {
+    if let Err(RulesError::TagParseError(msg)) = result {
         assert!(msg.contains("only one") || msg.contains("semi-colon"));
     } else {
-        panic!("Expected ParseError about multiple colons");
+        panic!("Expected TagParseError about multiple colons");
     }
 
     // Cleanup

@@ -6,20 +6,26 @@ use crate::types::Tag;
 use crate::utils::file;
 use crate::utils::string::StringIndexing;
 
-pub fn validate_tag(tag: &str) -> Result<(), RulesError> {
-    // Skip empty lines and comments
-    let trimmed = tag.trim();
+fn is_blank_or_comment(line: &str) -> bool {
+    let trimmed = line.trim();
     if trimmed.is_empty() || trimmed.starts_with('#') {
+        return true;
+    }
+    return false;
+}
+
+pub fn validate_tag(line: &str) -> Result<(), RulesError> {
+    if is_blank_or_comment(line) {
         return Ok(());
     }
 
-    let parts: Vec<&str> = tag.split(":").collect();
+    let parts: Vec<&str> = line.split(":").collect();
     let mut errors: HashSet<&str> = HashSet::new();
 
     // Check parts length BEFORE accessing
     if parts.len() < 2 {
-        return Err(RulesError::ParseError(
-            "Tag must contain a ':' separator".to_string()
+        return Err(RulesError::TagParseError(
+            "Tag must contain a ':' separator".to_string(),
         ));
     }
 
@@ -53,9 +59,9 @@ pub fn validate_tag(tag: &str) -> Result<(), RulesError> {
         // Copy references to strings from HashSet into Vec to join as one string
         let error_list: Vec<&str> = errors.iter().copied().collect();
 
-        return Err(RulesError::ParseError(format!(
-            "Errors parsing tag: '{}': {}",
-            tag,
+        return Err(RulesError::TagParseError(format!(
+            "Errors parsing line: '{}': {}",
+            line,
             error_list.join(", ")
         )));
     }
@@ -65,7 +71,13 @@ pub fn validate_tag(tag: &str) -> Result<(), RulesError> {
 
 fn get_name_from_tag(parts: &Vec<&str>) -> String {
     // Remove first char ('-') and trim
-    parts[0].trim().chars().skip(1).collect::<String>().trim().to_string()
+    parts[0]
+        .trim()
+        .chars()
+        .skip(1)
+        .collect::<String>()
+        .trim()
+        .to_string()
 }
 
 fn get_values_from_tag(parts: &Vec<&str>) -> Vec<String> {
@@ -82,10 +94,23 @@ pub fn get_name_and_values_from_tag(line: &str) -> Result<(String, Vec<String>),
 }
 
 pub fn parse_tags() -> Result<Vec<Tag>, RulesError> {
+    let mut tags: Vec<Tag> = vec![];
     let all_files: Vec<String> = file::read_files_in_dir("config/*.tags")?;
 
     for file in all_files.iter() {
-        println!("{}", file);
+        for line in file.lines() {
+            if is_blank_or_comment(line) {
+                continue;
+            }
+
+            let raw_tag = get_name_and_values_from_tag(line)?;
+            let tag = Tag {
+                name: raw_tag.0,
+                values: raw_tag.1,
+            };
+            tags.push(tag);
+        }
     }
-    Ok(vec![])
+
+    Ok(tags)
 }

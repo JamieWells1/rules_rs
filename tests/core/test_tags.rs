@@ -1,5 +1,5 @@
-use rules::parser::tags;
 use rules::err::RulesError;
+use rules::parser::tags;
 
 #[test]
 fn test_validate_tag_valid() {
@@ -25,10 +25,10 @@ fn test_validate_tag_no_colon() {
     let result = tags::validate_tag(invalid_tag);
 
     assert!(result.is_err());
-    if let Err(RulesError::ParseError(msg)) = result {
+    if let Err(RulesError::TagParseError(msg)) = result {
         assert!(msg.contains("must contain a ':' separator"));
     } else {
-        panic!("Expected ParseError about missing colon");
+        panic!("Expected TagParseError about missing colon");
     }
 }
 
@@ -38,10 +38,10 @@ fn test_validate_tag_no_dash() {
     let result = tags::validate_tag(invalid_tag);
 
     assert!(result.is_err());
-    if let Err(RulesError::ParseError(msg)) = result {
+    if let Err(RulesError::TagParseError(msg)) = result {
         assert!(msg.contains("Tag must begin with '-'"));
     } else {
-        panic!("Expected ParseError about missing dash");
+        panic!("Expected TagParseError about missing dash");
     }
 }
 
@@ -51,10 +51,10 @@ fn test_validate_tag_name_with_spaces() {
     let result = tags::validate_tag(invalid_tag);
 
     assert!(result.is_err());
-    if let Err(RulesError::ParseError(msg)) = result {
+    if let Err(RulesError::TagParseError(msg)) = result {
         assert!(msg.contains("Tag name cannot contain spaces"));
     } else {
-        panic!("Expected ParseError about tag name spaces");
+        panic!("Expected TagParseError about tag name spaces");
     }
 }
 
@@ -64,10 +64,10 @@ fn test_validate_tag_value_with_middle_spaces() {
     let result = tags::validate_tag(invalid_tag);
 
     assert!(result.is_err());
-    if let Err(RulesError::ParseError(msg)) = result {
+    if let Err(RulesError::TagParseError(msg)) = result {
         assert!(msg.contains("Tag values cannot contain spaces"));
     } else {
-        panic!("Expected ParseError about value spaces");
+        panic!("Expected TagParseError about value spaces");
     }
 }
 
@@ -77,10 +77,10 @@ fn test_validate_tag_multiple_colons() {
     let result = tags::validate_tag(invalid_tag);
 
     assert!(result.is_err());
-    if let Err(RulesError::ParseError(msg)) = result {
+    if let Err(RulesError::TagParseError(msg)) = result {
         assert!(msg.contains("only one") || msg.contains("semi-colon"));
     } else {
-        panic!("Expected ParseError about multiple colons");
+        panic!("Expected TagParseError about multiple colons");
     }
 }
 

@@ -23,7 +23,7 @@ Rule engine written in Rust for parsing and evaluating rules, with customisable 
 
 ---
 
-> ### ***Note**: Easy to understand config files are already present if you'd like to get started right away.*
+> ### **\*Note**: Easy to understand config files are already present if you'd like to get started right away.\*
 
 ---
 
@@ -131,7 +131,7 @@ Contains the actual matching rules written in the DSL syntax.
 
 Contains objects to be evaluated against the rules. Objects are grouped by type for flexibility.
 
-**File:** `config/objects.yaml`
+**File:** `config/my_objects.yaml`
 
 ```yaml
 objects:

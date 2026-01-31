@@ -21,15 +21,16 @@ impl Orchestrator {
     }
 
     fn map_subrules(&mut self) -> Result<(), RulesError> {
-        // Tokenise rules, parse them into sub-rules in DNF, store them
         Ok(())
     }
 
     pub fn run() -> Result<(), RulesError> {
         let mut orch: Orchestrator = Orchestrator::default();
 
-        // Initial parsing and orchestator mutation
+        // Parsing and storage
         orch.map_tags()?;
+
+        // Parsing, convertion to DNF and storage
         orch.map_subrules()?;
 
         Ok(())
