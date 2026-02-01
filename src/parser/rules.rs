@@ -1,6 +1,5 @@
 // Parser for .rules files
 use crate::types;
-use crate::types::ComparisonOp as op;
 use crate::utils::file;
 use crate::utils::string;
 use crate::{
