@@ -51,6 +51,14 @@ pub enum Token {
     Invalid,    // Initialiser
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TokenType {
+    TagName,      // "colour"
+    ComparisonOp, // =
+    TagValue,     // "red"
+    LogicalOp,    // &
+}
+
 pub struct Node {
     token: Token,
     left: Option<Box<Node>>,

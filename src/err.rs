@@ -16,4 +16,7 @@ pub enum RulesError {
 
     #[error("Error parsing Tag: {0}")]
     TagParseError(String),
+
+    #[error("Error parsing Rule: {0}")]
+    RuleParseError(String),
 }
