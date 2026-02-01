@@ -56,6 +56,7 @@ impl Parser {
                 ))
             }
         } else {
+            // Last token is a word (TagName/TagValue), look at the operator before it
             let second_to_last_token = &token_vec[token_vec.len() - 2];
             if second_to_last_token.len() > 1 {
                 return Err(RulesError::RuleParseError(
@@ -85,8 +86,9 @@ impl Parser {
         }
     }
 
-    // Split rule into operators, tag names and tag values
-    // E.g. ["colour", "=", "red"]
+    /// Tokenizes a rule string into a map of tokens with their types.
+    /// Splits on operator characters while preserving them as separate tokens.
+    /// Example: "colour = red" -> {"colour": TagName, "=": ComparisonOp, "red": TagValue}
     fn split_rule(rule: &str) -> Result<HashMap<String, TokenType>, RulesError> {
         let mut token_map: HashMap<String, TokenType> = HashMap::new();
         let mut token_vec: Vec<String> = Vec::new();
@@ -96,26 +98,28 @@ impl Parser {
             .map_err(|rule| RulesError::RuleParseError(format!("Error parsing rule: {}", rule)))?;
 
         for c in rule.trim().chars() {
-            // Is operator
             if ALL_OP_CHARS.contains(&c) {
+                // Flush accumulated word before adding operator
                 if !current_word.is_empty() {
                     token_vec.push(current_word.trim().to_string());
                     token_map.insert(current_word.trim().to_string(), expected_token_type);
                     current_word.clear();
                 }
 
-                token_map.insert(c.to_string(), expected_token_type.clone());
+                token_map.insert(c.to_string(), expected_token_type);
             } else if c == ' ' {
+                // Space acts as word boundary
                 if !current_word.is_empty() {
                     token_map.insert(current_word.trim().to_string(), expected_token_type);
                     current_word.clear();
                 }
             } else {
+                // Accumulate characters into current word
                 current_word.push(c);
             }
         }
 
-        // Push last word
+        // Flush final word if present
         if !current_word.is_empty() {
             token_map.insert(current_word.trim().to_string(), expected_token_type);
         }
@@ -135,13 +139,17 @@ impl Parser {
     }
 
     fn string_to_rule(rule_str: &str) -> Result<Rule, RulesError> {
-        // TODO
+        // TODO: Parse string into AST representation
+        unimplemented!()
     }
 
     fn rule_to_dnf_subrule(rule: Rule) -> Result<SubRule, RulesError> {
-        // TODO
+        // TODO: Convert AST to Disjunctive Normal Form
+        unimplemented!()
     }
 
+    /// Main entry point for parsing rule files.
+    /// Converts all .rules files into Disjunctive Normal Form (DNF) subrules.
     pub fn parse_rules(
         tags: HashMap<types::TagName, types::TagValues>,
     ) -> Result<Vec<SubRule>, RulesError> {
@@ -156,10 +164,10 @@ impl Parser {
                     continue;
                 }
 
+                // Parse string to AST, then convert to DNF representation
                 let rule = string_to_rule(line)?;
                 let subrule = rule_to_dnf_subrule(rule)?;
 
-                // TODO
                 dnf_subrules.push(subrule);
             }
         }
