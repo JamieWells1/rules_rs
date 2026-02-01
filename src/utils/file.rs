@@ -21,3 +21,11 @@ pub fn read_files_in_dir(pattern: &str) -> Result<Vec<String>, RulesError> {
 
     Ok(contents)
 }
+
+pub fn line_blank_or_comment(line: &str) -> bool {
+    let trimmed = line.trim();
+    if trimmed.is_empty() || trimmed.starts_with('#') {
+        return true;
+    }
+    return false;
+}

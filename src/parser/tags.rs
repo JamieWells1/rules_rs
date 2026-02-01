@@ -4,18 +4,10 @@ use std::collections::HashSet;
 use crate::err::RulesError;
 use crate::types::Tag;
 use crate::utils::file;
-use crate::utils::string::StringIndexing;
-
-fn is_blank_or_comment(line: &str) -> bool {
-    let trimmed = line.trim();
-    if trimmed.is_empty() || trimmed.starts_with('#') {
-        return true;
-    }
-    return false;
-}
+use crate::utils::string::{StringUtils, normalise};
 
 pub fn validate_tag(line: &str) -> Result<(), RulesError> {
-    if is_blank_or_comment(line) {
+    if file::line_blank_or_comment(line) {
         return Ok(());
     }
 
@@ -70,14 +62,7 @@ pub fn validate_tag(line: &str) -> Result<(), RulesError> {
 }
 
 fn get_name_from_tag(parts: &Vec<&str>) -> String {
-    // Remove first char ('-') and trim
-    parts[0]
-        .trim()
-        .chars()
-        .skip(1)
-        .collect::<String>()
-        .trim()
-        .to_string()
+    normalise(parts[0])
 }
 
 fn get_values_from_tag(parts: &Vec<&str>) -> Vec<String> {
@@ -99,7 +84,7 @@ pub fn parse_tags() -> Result<Vec<Tag>, RulesError> {
 
     for file in all_files.iter() {
         for line in file.lines() {
-            if is_blank_or_comment(line) {
+            if file::line_blank_or_comment(line) {
                 continue;
             }
 

@@ -1,7 +1,7 @@
 use crate::err::RulesError;
 use crate::parser::tags;
 use crate::utils::file;
-use crate::utils::string::StringIndexing;
+use crate::utils::string::StringUtils;
 
 pub fn write(file_name: &str, tag_name: String, tag_values: Vec<String>) -> Result<(), RulesError> {
     let file: String = file::read_file(&format!("config/{}", file_name))?;

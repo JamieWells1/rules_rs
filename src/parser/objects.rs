@@ -2,6 +2,6 @@
 use crate::{err::RulesError, types::Object};
 
 pub fn validate_object(obj: Object) -> Result<(), RulesError> {
-    // Check its tags are valid
+    // TODO: Check its tags are valid
     Ok(())
 }

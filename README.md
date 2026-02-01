@@ -18,10 +18,8 @@ Rule engine written in Rust for parsing and evaluating rules, with customisable 
   - [Step 1: Index and Validate Tags (Parser)](#step-1-index-and-validate-tags-parser)
   - [Step 2: Validate and Convert Rules to Disjunctive Normal Form (DNF) (Parser)](#step-2-validate-and-convert-rules-to-disjunctive-normal-form-dnf-parser)
   - [Step 3: Validate and Build Map of Objects (Parser)](#step-3-validate-and-build-map-of-objects-parser)
-  - [Step 4: Build Subrule Metadata (Engine)](#step-4-build-subrule-metadata-engine)
-  - [Step 5: Create Tag-to-Subrule Maps (Engine)](#step-5-create-tag-to-subrule-maps-engine)
-  - [Step 6: Match Objects Against Rules (Engine)](#step-6-match-objects-against-rules-engine)
-  - [Step 7: Determine Match Result (Engine)](#step-7-determine-match-result-engine)
+  - [Step 4: Match Objects Against Rules (Engine)](#step-4-match-objects-against-rules-engine)
+  - [Step 5: Determine Match Result (Engine)](#step-5-determine-match-result-engine)
 
 ---
 
@@ -193,7 +191,7 @@ Parse the tags file and build an index of all available tags and their valid val
 
 ## Step 2: Validate and Convert Rules to Disjunctive Normal Form (DNF) (Parser)
 
-Convert each rule into OR-of-ANDs format (each AND group is a "subrule").
+Parse each rule, validate syntax, convert to OR-of-ANDs format (each AND group is a "subrule"), build subrule objects, and create tag-to-subrule maps. For each subrule, track the expected clause count, actual match count (initialized to 0), comparison operators, and tag key-value pairs.
 
 **Example:**
 
@@ -203,37 +201,35 @@ DNF:      (colour=blue & shape!circle) | (colour=red & shape!circle)
           └────────── SR1 ───────────┘   └────────── SR2 ──────────┘
 ```
 
-## Step 3: Validate and Build Map of Objects (Parser)
-
-Parse the objects YAML file and build a map of all objects to evaluate. Validate that each object has valid structure and assign object types based on their grouping in the YAML file.
-
-## Step 4: Build Subrule Metadata (Engine)
-
-For each subrule, track how many clauses it contains and what operators are used.
-
-**Example:**
-
 ```
-SR1: { expected_count: 2, actual_count: 0, operators: [ISEQ, NOEQ] }
-SR2: { expected_count: 2, actual_count: 0, clauses: [ISEQ, ISEQ] }
-```
+Subrule Objects:
+SR1: {
+  expected_count: 2,
+  actual_count: 0,
+  comparison_ops: [ISEQ, NOEQ],
+  tag_kvs: {"colour": "blue", "shape": "circle"}
+}
+SR2: {
+  expected_count: 2,
+  actual_count: 0,
+  comparison_ops: [ISEQ, NOEQ],
+  tag_kvs: {"colour": "red", "shape": "circle"}
+}
 
-## Step 5: Create Tag-to-Subrule Maps (Engine)
-
-For each tag, map its values to the subrules where they appear.
-
-**Example:**
-
-```
+Tag-to-Subrule Maps:
 colour map:
   "blue" → [SR1]
   "red"  → [SR2]
 
 shape map:
-  "circle" → [SR1, SR2]  (appears in both with ! operator)
+  "circle" → [SR1, SR2]  (appears in both with NOEQ operator)
 ```
 
-## Step 6: Match Objects Against Rules (Engine)
+## Step 3: Validate and Build Map of Objects (Parser)
+
+Parse the objects YAML file and build a map of all objects to evaluate. Validate that each object has valid structure and assign object types based on their grouping in the YAML file.
+
+## Step 4: Match Objects Against Rules (Engine)
 
 For each object, check which clauses match and increment the `actual_count` for matching subrules.
 
@@ -252,7 +248,7 @@ Matching process:
 - `shape!circle` matches → increment `SR2.actual_count` to 1
 - `colour=red` doesn't match → `SR2.actual_count` stays at 1
 
-## Step 7: Determine Match Result (Engine)
+## Step 5: Determine Match Result (Engine)
 
 A rule matches if **any subrule** has `actual_count == expected_count`.
 
