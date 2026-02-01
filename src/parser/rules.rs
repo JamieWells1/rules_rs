@@ -3,7 +3,9 @@ use crate::types;
 use crate::types::ComparisonOp as op;
 use crate::utils::file;
 use crate::utils::string;
-use crate::{err::RulesError, types::Rule, types::SubRule, types::TokenType};
+use crate::{
+    err::RulesError, types::MappedRuleTokens, types::Rule, types::SubRule, types::TokenType,
+};
 
 use std::collections::HashMap;
 
@@ -89,7 +91,7 @@ impl Parser {
     /// Tokenizes a rule string into a map of tokens with their types.
     /// Splits on operator characters while preserving them as separate tokens.
     /// Example: "colour = red" -> {"colour": TagName, "=": ComparisonOp, "red": TagValue}
-    fn split_rule(rule: &str) -> Result<HashMap<String, TokenType>, RulesError> {
+    fn map_rule_tokens(rule: &str) -> Result<MappedRuleTokens, RulesError> {
         let mut token_map: HashMap<String, TokenType> = HashMap::new();
         let mut token_vec: Vec<String> = Vec::new();
         let mut current_word = String::new();
@@ -133,13 +135,17 @@ impl Parser {
         }
 
         let line = string::normalise(line);
-        let rule_parts: Vec<String> = split_rule(&line);
+        let tokens: MappedRuleTokens = Self::map_rule_tokens(&line)?;
+
+        // NEXT TASK: Ensure that parts conform to correct syntactical structure
+        // !!! getting expected token type based on previous tokens is invalid for more complex rules e.g. ones that have nested parenthesis
 
         Ok(())
     }
 
     fn string_to_rule(rule_str: &str) -> Result<Rule, RulesError> {
         // TODO: Parse string into AST representation
+        Self::validate_rule(rule_str)?;
         unimplemented!()
     }
 
@@ -165,8 +171,8 @@ impl Parser {
                 }
 
                 // Parse string to AST, then convert to DNF representation
-                let rule = string_to_rule(line)?;
-                let subrule = rule_to_dnf_subrule(rule)?;
+                let rule = Self::string_to_rule(line)?;
+                let subrule = Self::rule_to_dnf_subrule(rule)?;
 
                 dnf_subrules.push(subrule);
             }

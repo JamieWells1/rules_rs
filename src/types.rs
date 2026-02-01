@@ -19,6 +19,9 @@ pub type Object = HashMap<String, Vec<String>>;
 // Clause in subrule -- e.g. "colour": "green"
 pub type TagKvMap = HashMap<String, String>;
 
+// Tokens and their type -- e.g. { "colour": TagName, "=": ComparisonOp }
+pub type MappedRuleTokens = HashMap<String, TokenType>;
+
 // Structs
 
 pub struct Tag {
