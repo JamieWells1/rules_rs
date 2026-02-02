@@ -19,6 +19,33 @@ pub struct RuleParser {
 }
 
 impl RuleParser {
+    /// Creates a new RuleParser with the given tags
+    pub fn new(tags: HashMap<types::TagName, types::TagValues>) -> Self {
+        RuleParser {
+            m_mapped_tags: tags,
+        }
+    }
+
+    /// Public API to validate a rule
+    pub fn validate_rule(&self, rule: &str) -> Result<(), RulesError> {
+        self.validate_rule_internal(rule)
+    }
+
+    /// Internal validation implementation
+    fn validate_rule_internal(&self, line: &str) -> Result<(), RulesError> {
+        if file::line_blank_or_comment(line) {
+            return Ok(());
+        }
+
+        let line = string::normalise(line)?;
+        let tokens: MappedRuleTokens = Self::map_rule_tokens(&line)?;
+
+        Self::check_rule_syntax(&tokens)?;
+        self.check_valid_tags(&tokens)?;
+        Ok(())
+    }
+
+
     /// Infers the expected type of the next token based on parsing context.
     /// Uses the last token (and sometimes second-to-last) to determine what should come next.
     /// Example: after '(' we expect TagName, after '=' we expect TagValue
@@ -259,18 +286,6 @@ impl RuleParser {
         Ok(())
     }
 
-    fn validate_rule(&self, line: &str) -> Result<(), RulesError> {
-        if file::line_blank_or_comment(line) {
-            return Ok(());
-        }
-
-        let line = string::normalise(line)?;
-        let tokens: MappedRuleTokens = Self::map_rule_tokens(&line)?;
-
-        Self::check_rule_syntax(&tokens)?;
-        Self::check_valid_tags(&self, &tokens)?;
-        Ok(())
-    }
 
     fn string_to_rule(&self, rule_str: &str) -> Result<Rule, RulesError> {
         // TODO: Parse string into AST representation
