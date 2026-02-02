@@ -153,7 +153,6 @@ impl RuleParser {
         let tokens: MappedRuleTokens = Self::map_rule_tokens(&line)?;
 
         // NEXT TASK: Ensure that parts conform to correct syntactical structure
-        // !!! getting expected token type based on previous tokens is invalid for more complex rules e.g. ones that have nested parenthesis
 
         Ok(())
     }
