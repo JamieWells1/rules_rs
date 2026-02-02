@@ -23,10 +23,10 @@ impl RuleParser {
     /// Infers the expected type of the next token based on parsing context.
     /// Uses the last token (and sometimes second-to-last) to determine what should come next.
     /// Example: after '(' we expect TagName, after '=' we expect TagValue
-    fn get_expected_token_type(token_vec: &Vec<String>) -> Result<TokenType, RulesError> {
-        let last_token = token_vec
+    fn get_expected_token_type(parsed_tokens: &Vec<String>) -> Result<TokenType, RulesError> {
+        let last_token = parsed_tokens
             .last()
-            .ok_or_else(|| RulesError::RuleParseError("Empty token vector".to_string()))?;
+            .ok_or_else(|| RulesError::RuleParseError("No tokens to parse.".to_string()))?;
 
         // Check if last token is a single-character operator
         let c = if last_token.len() == 1 {
@@ -58,7 +58,7 @@ impl RuleParser {
             }
         } else {
             // Last token is a word (TagName/TagValue), look at the operator before it
-            let second_to_last_token = &token_vec[token_vec.len() - 2];
+            let second_to_last_token = &parsed_tokens[parsed_tokens.len() - 2];
             if second_to_last_token.len() > 1 {
                 return Err(RulesError::RuleParseError(
                     format!(
@@ -92,25 +92,34 @@ impl RuleParser {
     /// Example: "colour = red" -> {"colour": TagName, "=": ComparisonOp, "red": TagValue}
     fn map_rule_tokens(rule: &str) -> Result<MappedRuleTokens, RulesError> {
         let mut token_map: HashMap<String, TokenType> = HashMap::new();
-        let mut token_vec: Vec<String> = Vec::new();
+        let mut parsed_tokens: Vec<String> = Vec::new();
         let mut current_word = String::new();
-
-        let expected_token_type = Self::get_expected_token_type(&token_vec)
-            .map_err(|rule| RulesError::RuleParseError(format!("Error parsing rule: {}", rule)))?;
 
         for c in rule.trim().chars() {
             if ALL_OP_CHARS.contains(&c) {
                 // Flush accumulated word before adding operator
                 if !current_word.is_empty() {
-                    token_vec.push(current_word.trim().to_string());
+                    let expected_token_type = Self::get_expected_token_type(&parsed_tokens)
+                        .map_err(|rule| {
+                            RulesError::RuleParseError(format!("Error parsing rule: {}", rule))
+                        })?;
+                    parsed_tokens.push(current_word.trim().to_string());
                     token_map.insert(current_word.trim().to_string(), expected_token_type);
                     current_word.clear();
                 }
 
+                let expected_token_type =
+                    Self::get_expected_token_type(&parsed_tokens).map_err(|rule| {
+                        RulesError::RuleParseError(format!("Error parsing rule: {}", rule))
+                    })?;
                 token_map.insert(c.to_string(), expected_token_type);
             } else if c == ' ' {
                 // Space acts as word boundary
                 if !current_word.is_empty() {
+                    let expected_token_type = Self::get_expected_token_type(&parsed_tokens)
+                        .map_err(|rule| {
+                            RulesError::RuleParseError(format!("Error parsing rule: {}", rule))
+                        })?;
                     token_map.insert(current_word.trim().to_string(), expected_token_type);
                     current_word.clear();
                 }
@@ -122,6 +131,10 @@ impl RuleParser {
 
         // Flush final word if present
         if !current_word.is_empty() {
+            let expected_token_type =
+                Self::get_expected_token_type(&parsed_tokens).map_err(|rule| {
+                    RulesError::RuleParseError(format!("Error parsing rule: {}", rule))
+                })?;
             token_map.insert(current_word.trim().to_string(), expected_token_type);
         }
 

@@ -65,7 +65,7 @@ fn test_write_tag_invalid_tag_no_colon() {
     if let Err(RulesError::TagParseError(msg)) = result {
         assert!(msg.contains("must contain a ':' separator"));
     } else {
-        panic!("Expected TagParseError");
+        panic!("Expected TagParseError.");
     }
 
     // Cleanup
@@ -87,7 +87,7 @@ fn test_write_tag_invalid_tag_no_dash() {
     if let Err(RulesError::TagParseError(msg)) = result {
         assert!(msg.contains("Tag must begin with '-'"));
     } else {
-        panic!("Expected TagParseError with '-' message");
+        panic!("Expected TagParseError with '-' message.");
     }
 
     // Cleanup
@@ -107,9 +107,9 @@ fn test_write_tag_invalid_tag_name_with_spaces() {
 
     assert!(result.is_err());
     if let Err(RulesError::TagParseError(msg)) = result {
-        assert!(msg.contains("Tag name cannot contain spaces"));
+        assert!(msg.contains("Tag name cannot contain spaces."));
     } else {
-        panic!("Expected TagParseError about tag name spaces");
+        panic!("Expected TagParseError about tag name spaces.");
     }
 
     // Cleanup
@@ -129,9 +129,9 @@ fn test_write_tag_invalid_value_with_middle_spaces() {
 
     assert!(result.is_err());
     if let Err(RulesError::TagParseError(msg)) = result {
-        assert!(msg.contains("Tag values cannot contain spaces"));
+        assert!(msg.contains("Tag values cannot contain spaces."));
     } else {
-        panic!("Expected TagParseError about value spaces");
+        panic!("Expected TagParseError about value spaces.");
     }
 
     // Cleanup
@@ -153,7 +153,7 @@ fn test_write_tag_multiple_colons() {
     if let Err(RulesError::TagParseError(msg)) = result {
         assert!(msg.contains("only one") || msg.contains("semi-colon"));
     } else {
-        panic!("Expected TagParseError about multiple colons");
+        panic!("Expected TagParseError about multiple colons.");
     }
 
     // Cleanup
