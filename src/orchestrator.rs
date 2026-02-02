@@ -2,7 +2,7 @@
 use crate::types;
 use std::collections::HashMap;
 
-use crate::{err::RulesError, parser::rules::Parser, parser::tags};
+use crate::{err::RulesError, parser::rules::RuleParser, parser::tags};
 
 #[derive(Default)]
 pub struct Orchestrator {
@@ -21,7 +21,7 @@ impl Orchestrator {
     }
 
     fn map_subrules(&mut self) -> Result<(), RulesError> {
-        let dnf_subrules: Vec<types::SubRule> = Parser::parse_rules(self.m_tags.clone())?;
+        let dnf_subrules: Vec<types::SubRule> = RuleParser::parse_rules(self.m_tags.clone())?;
         for (i, subrule) in dnf_subrules.into_iter().enumerate() {
             self.m_subrules.insert(i as i32, subrule);
         }

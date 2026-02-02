@@ -15,11 +15,11 @@ const RHS_CHARS: &[char] = &['=', '!', ',', ')'];
 // Operators that expect a TagName on the left-hand side
 const LHS_CHARS: &[char] = &['&', '|', '('];
 
-pub struct Parser {
+pub struct RuleParser {
     m_tags: HashMap<types::TagName, types::TagValues>,
 }
 
-impl Parser {
+impl RuleParser {
     /// Infers the expected type of the next token based on parsing context.
     /// Uses the last token (and sometimes second-to-last) to determine what should come next.
     /// Example: after '(' we expect TagName, after '=' we expect TagValue
@@ -158,7 +158,7 @@ impl Parser {
     pub fn parse_rules(
         tags: HashMap<types::TagName, types::TagValues>,
     ) -> Result<Vec<SubRule>, RulesError> {
-        let Parser { m_tags: tags };
+        let RuleParser { m_tags: tags };
 
         let mut dnf_subrules: Vec<SubRule> = Vec::new();
         let all_files: Vec<String> = file::read_files_in_dir("config/*.rules")?;

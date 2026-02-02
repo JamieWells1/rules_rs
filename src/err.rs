@@ -19,4 +19,7 @@ pub enum RulesError {
 
     #[error("Error parsing Rule: {0}")]
     RuleParseError(String),
+
+    #[error("Error parsing Object: {0}")]
+    ObjectParseError(String),
 }
