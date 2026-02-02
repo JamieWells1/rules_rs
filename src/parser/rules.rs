@@ -1,10 +1,9 @@
 // Parser for .rules files
-use crate::types;
+use crate::parser::types::{MappedRuleTokens, Rule, TokenType};
+use crate::types::{self, SubRule};
 use crate::utils::file;
 use crate::utils::string;
-use crate::{
-    err::RulesError, types::MappedRuleTokens, types::Rule, types::SubRule, types::TokenType,
-};
+use crate::err::RulesError;
 
 use std::collections::HashMap;
 

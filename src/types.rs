@@ -1,8 +1,8 @@
-// Types
-
-// Aliases
+// Shared domain types
 
 use std::collections::HashMap;
+
+// Aliases
 
 // Tag name -- e.g. "colour"
 pub type TagName = String;
@@ -10,7 +10,7 @@ pub type TagName = String;
 // Tag values -- e.g. ["red", "green"]
 pub type TagValues = Vec<String>;
 
-// Number of subrule -- e.g. 1
+// Number of subrule -- e.g. 42
 pub type SubRuleNumber = i32;
 
 // Object structure -- e.g. "colour": ["green"]
@@ -18,10 +18,6 @@ pub type Object = HashMap<String, Vec<String>>;
 
 // Clause in subrule -- e.g. "colour": "green"
 pub type TagKvMap = HashMap<String, String>;
-
-// Tokens and their type -- e.g. [("colour", TagName), ("=", ComparisonOp)]
-// Changed from HashMap to Vec to allow duplicate tokens and maintain order
-pub type MappedRuleTokens = Vec<(String, TokenType)>;
 
 // Structs
 
@@ -43,36 +39,6 @@ pub enum LogicalOp {
     OR,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Token {
-    LeftParen,  // (
-    RightParen, // )
-    Equals,     // =
-    NotEquals,  // !
-    And,        // &
-    Or,         // |
-    Comma,      // ,
-    Invalid,    // Initialiser
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum TokenType {
-    TagName,      // "colour"
-    ComparisonOp, // =
-    TagValue,     // "red"
-    LogicalOp,    // &
-}
-
-pub struct Node {
-    token: Token,
-    left: Option<Box<Node>>,
-    right: Option<Box<Node>>,
-}
-
-pub struct Rule {
-    pub nodes: Vec<Node>,
-}
-
 pub struct SubRule {
     pub expected_count: i32,
     pub actual_count: i32,
@@ -83,16 +49,6 @@ pub struct SubRule {
 
 // Impls
 
-impl Default for Node {
-    fn default() -> Self {
-        Node {
-            token: Token::Invalid,
-            left: None,
-            right: None,
-        }
-    }
-}
-
 impl Default for SubRule {
     fn default() -> Self {
         SubRule {
@@ -100,34 +56,6 @@ impl Default for SubRule {
             actual_count: 0,
             comparison_ops: Vec::new(),
             tag_kvs: HashMap::new(),
-        }
-    }
-}
-
-impl Token {
-    pub fn as_char(&self) -> char {
-        match self {
-            Token::LeftParen => '(',
-            Token::RightParen => ')',
-            Token::Equals => '=',
-            Token::NotEquals => '!',
-            Token::And => '&',
-            Token::Or => '|',
-            Token::Comma => ',',
-            Token::Invalid => panic!("Invalid token has no character representation"),
-        }
-    }
-
-    pub fn from_char(c: char) -> Option<Self> {
-        match c {
-            '(' => Some(Token::LeftParen),
-            ')' => Some(Token::RightParen),
-            '=' => Some(Token::Equals),
-            '!' => Some(Token::NotEquals),
-            '&' => Some(Token::And),
-            '|' => Some(Token::Or),
-            ',' => Some(Token::Comma),
-            _ => None,
         }
     }
 }
