@@ -19,8 +19,9 @@ pub type Object = HashMap<String, Vec<String>>;
 // Clause in subrule -- e.g. "colour": "green"
 pub type TagKvMap = HashMap<String, String>;
 
-// Tokens and their type -- e.g. { "colour": TagName, "=": ComparisonOp }
-pub type MappedRuleTokens = HashMap<String, TokenType>;
+// Tokens and their type -- e.g. [("colour", TagName), ("=", ComparisonOp)]
+// Changed from HashMap to Vec to allow duplicate tokens and maintain order
+pub type MappedRuleTokens = Vec<(String, TokenType)>;
 
 // Structs
 

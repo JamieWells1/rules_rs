@@ -107,7 +107,7 @@ impl RuleParser {
     }
 
     fn map_rule_tokens(rule: &str) -> Result<MappedRuleTokens, RulesError> {
-        let mut token_map: HashMap<String, TokenType> = HashMap::new();
+        let mut mapped_token_list: Vec<(String, TokenType)> = Vec::new();
         let mut parsed_tokens: Vec<String> = Vec::new();
         let mut current_word = String::new();
         let mut parenthesis_depth = 0;
@@ -117,15 +117,17 @@ impl RuleParser {
                 if !current_word.is_empty() {
                     let expected_token_type =
                         Self::get_expected_token_type(&parsed_tokens, parenthesis_depth)?;
-                    parsed_tokens.push(current_word.trim().to_string());
-                    token_map.insert(current_word.trim().to_string(), expected_token_type);
+                    let token = current_word.trim().to_string();
+                    parsed_tokens.push(token.clone());
+                    mapped_token_list.push((token, expected_token_type));
                     current_word.clear();
                 }
 
                 let expected_token_type =
                     Self::get_expected_token_type(&parsed_tokens, parenthesis_depth)?;
-                token_map.insert(c.to_string(), expected_token_type);
-                parsed_tokens.push(c.to_string());
+                let token = c.to_string();
+                mapped_token_list.push((token.clone(), expected_token_type));
+                parsed_tokens.push(token);
 
                 // Update parenthesis depth after processing token
                 if c == '(' {
@@ -143,8 +145,9 @@ impl RuleParser {
                 if !current_word.is_empty() {
                     let expected_token_type =
                         Self::get_expected_token_type(&parsed_tokens, parenthesis_depth)?;
-                    parsed_tokens.push(current_word.trim().to_string());
-                    token_map.insert(current_word.trim().to_string(), expected_token_type);
+                    let token = current_word.trim().to_string();
+                    parsed_tokens.push(token.clone());
+                    mapped_token_list.push((token, expected_token_type));
                     current_word.clear();
                 }
             } else {
@@ -157,8 +160,9 @@ impl RuleParser {
         if !current_word.is_empty() {
             let expected_token_type =
                 Self::get_expected_token_type(&parsed_tokens, parenthesis_depth)?;
-            parsed_tokens.push(current_word.trim().to_string());
-            token_map.insert(current_word.trim().to_string(), expected_token_type);
+            let token = current_word.trim().to_string();
+            parsed_tokens.push(token.clone());
+            mapped_token_list.push((token, expected_token_type));
         }
 
         if parenthesis_depth != 0 {
@@ -167,7 +171,7 @@ impl RuleParser {
             ));
         }
 
-        Ok(token_map)
+        Ok(mapped_token_list)
     }
 
     fn validate_rule(line: &str) -> Result<(), RulesError> {
@@ -226,6 +230,22 @@ impl RuleParser {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // Find a token in the token list
+    fn find_token<'a>(
+        tokens: &'a [(String, TokenType)],
+        token_str: &str,
+    ) -> Option<&'a TokenType> {
+        tokens
+            .iter()
+            .find(|(s, _)| s == token_str)
+            .map(|(_, t)| t)
+    }
+
+    // Count occurrences of a token
+    fn count_token(tokens: &[(String, TokenType)], token_str: &str) -> usize {
+        tokens.iter().filter(|(s, _)| s == token_str).count()
+    }
 
     // Tests for get_expected_token_type
     #[test]
@@ -338,11 +358,11 @@ mod tests {
         let result = RuleParser::map_rule_tokens(rule);
 
         assert!(result.is_ok());
-        let token_map = result.unwrap();
-        assert_eq!(token_map.len(), 3);
-        assert_eq!(token_map.get("colour"), Some(&TokenType::TagName));
-        assert_eq!(token_map.get("="), Some(&TokenType::ComparisonOp));
-        assert_eq!(token_map.get("red"), Some(&TokenType::TagValue));
+        let tokens = result.unwrap();
+        assert_eq!(tokens.len(), 3);
+        assert_eq!(find_token(&tokens, "colour"), Some(&TokenType::TagName));
+        assert_eq!(find_token(&tokens, "="), Some(&TokenType::ComparisonOp));
+        assert_eq!(find_token(&tokens, "red"), Some(&TokenType::TagValue));
     }
 
     #[test]
@@ -351,13 +371,13 @@ mod tests {
         let result = RuleParser::map_rule_tokens(rule);
 
         assert!(result.is_ok());
-        let token_map = result.unwrap();
-        assert_eq!(token_map.len(), 5);
-        assert_eq!(token_map.get("("), Some(&TokenType::TagName));
-        assert_eq!(token_map.get("colour"), Some(&TokenType::TagName));
-        assert_eq!(token_map.get("="), Some(&TokenType::ComparisonOp));
-        assert_eq!(token_map.get("red"), Some(&TokenType::TagValue));
-        assert_eq!(token_map.get(")"), Some(&TokenType::LogicalOp));
+        let tokens = result.unwrap();
+        assert_eq!(tokens.len(), 5);
+        assert_eq!(find_token(&tokens, "("), Some(&TokenType::TagName));
+        assert_eq!(find_token(&tokens, "colour"), Some(&TokenType::TagName));
+        assert_eq!(find_token(&tokens, "="), Some(&TokenType::ComparisonOp));
+        assert_eq!(find_token(&tokens, "red"), Some(&TokenType::TagValue));
+        assert_eq!(find_token(&tokens, ")"), Some(&TokenType::LogicalOp));
     }
 
     #[test]
@@ -366,12 +386,13 @@ mod tests {
         let result = RuleParser::map_rule_tokens(rule);
 
         assert!(result.is_ok());
-        let token_map = result.unwrap();
-        assert!(token_map.contains_key("("));
-        assert!(token_map.contains_key(")"));
-        assert_eq!(token_map.get("colour"), Some(&TokenType::TagName));
-        assert_eq!(token_map.get("="), Some(&TokenType::ComparisonOp));
-        assert_eq!(token_map.get("red"), Some(&TokenType::TagValue));
+        let tokens = result.unwrap();
+        // Should have 2 open parens, 2 close parens, colour, =, red
+        assert_eq!(count_token(&tokens, "("), 2);
+        assert_eq!(count_token(&tokens, ")"), 2);
+        assert_eq!(find_token(&tokens, "colour"), Some(&TokenType::TagName));
+        assert_eq!(find_token(&tokens, "="), Some(&TokenType::ComparisonOp));
+        assert_eq!(find_token(&tokens, "red"), Some(&TokenType::TagValue));
     }
 
     #[test]
@@ -380,12 +401,15 @@ mod tests {
         let result = RuleParser::map_rule_tokens(rule);
 
         assert!(result.is_ok());
-        let token_map = result.unwrap();
-        assert_eq!(token_map.get("colour"), Some(&TokenType::TagName));
-        assert_eq!(token_map.get("red"), Some(&TokenType::TagValue));
-        assert_eq!(token_map.get("&"), Some(&TokenType::LogicalOp));
-        assert_eq!(token_map.get("size"), Some(&TokenType::TagName));
-        assert_eq!(token_map.get("large"), Some(&TokenType::TagValue));
+        let tokens = result.unwrap();
+        assert_eq!(tokens.len(), 7);
+        assert_eq!(find_token(&tokens, "colour"), Some(&TokenType::TagName));
+        assert_eq!(find_token(&tokens, "red"), Some(&TokenType::TagValue));
+        assert_eq!(find_token(&tokens, "&"), Some(&TokenType::LogicalOp));
+        assert_eq!(find_token(&tokens, "size"), Some(&TokenType::TagName));
+        assert_eq!(find_token(&tokens, "large"), Some(&TokenType::TagValue));
+        // Check that both = operators are present
+        assert_eq!(count_token(&tokens, "="), 2);
     }
 
     #[test]
@@ -394,11 +418,15 @@ mod tests {
         let result = RuleParser::map_rule_tokens(rule);
 
         assert!(result.is_ok());
-        let token_map = result.unwrap();
-        assert_eq!(token_map.get("colour"), Some(&TokenType::TagName));
-        assert_eq!(token_map.get("|"), Some(&TokenType::LogicalOp));
-        assert!(token_map.contains_key("red"));
-        assert!(token_map.contains_key("blue"));
+        let tokens = result.unwrap();
+        assert_eq!(tokens.len(), 7);
+        // "colour" appears twice
+        assert_eq!(count_token(&tokens, "colour"), 2);
+        assert_eq!(find_token(&tokens, "|"), Some(&TokenType::LogicalOp));
+        assert_eq!(find_token(&tokens, "red"), Some(&TokenType::TagValue));
+        assert_eq!(find_token(&tokens, "blue"), Some(&TokenType::TagValue));
+        // Check that both = operators are present
+        assert_eq!(count_token(&tokens, "="), 2);
     }
 
     #[test]
@@ -407,10 +435,11 @@ mod tests {
         let result = RuleParser::map_rule_tokens(rule);
 
         assert!(result.is_ok());
-        let token_map = result.unwrap();
-        assert_eq!(token_map.get("colour"), Some(&TokenType::TagName));
-        assert_eq!(token_map.get("!"), Some(&TokenType::ComparisonOp));
-        assert_eq!(token_map.get("red"), Some(&TokenType::TagValue));
+        let tokens = result.unwrap();
+        assert_eq!(tokens.len(), 3);
+        assert_eq!(find_token(&tokens, "colour"), Some(&TokenType::TagName));
+        assert_eq!(find_token(&tokens, "!"), Some(&TokenType::ComparisonOp));
+        assert_eq!(find_token(&tokens, "red"), Some(&TokenType::TagValue));
     }
 
     #[test]
@@ -419,12 +448,17 @@ mod tests {
         let result = RuleParser::map_rule_tokens(rule);
 
         assert!(result.is_ok());
-        let token_map = result.unwrap();
-        assert_eq!(token_map.get("colour"), Some(&TokenType::TagName));
-        assert_eq!(token_map.get("red"), Some(&TokenType::TagValue));
-        assert_eq!(token_map.get("&"), Some(&TokenType::LogicalOp));
-        assert_eq!(token_map.get("size"), Some(&TokenType::TagName));
-        assert_eq!(token_map.get("large"), Some(&TokenType::TagValue));
+        let tokens = result.unwrap();
+        assert_eq!(find_token(&tokens, "colour"), Some(&TokenType::TagName));
+        assert_eq!(find_token(&tokens, "red"), Some(&TokenType::TagValue));
+        assert_eq!(find_token(&tokens, "&"), Some(&TokenType::LogicalOp));
+        assert_eq!(find_token(&tokens, "size"), Some(&TokenType::TagName));
+        assert_eq!(find_token(&tokens, "large"), Some(&TokenType::TagValue));
+        // Check that both = operators are present
+        assert_eq!(count_token(&tokens, "="), 2);
+        // Check parentheses counts
+        assert_eq!(count_token(&tokens, "("), 3);
+        assert_eq!(count_token(&tokens, ")"), 3);
     }
 
     #[test]
@@ -459,10 +493,11 @@ mod tests {
         let result = RuleParser::map_rule_tokens(rule);
 
         assert!(result.is_ok());
-        let token_map = result.unwrap();
-        assert_eq!(token_map.get("colour"), Some(&TokenType::TagName));
-        assert_eq!(token_map.get("="), Some(&TokenType::ComparisonOp));
-        assert_eq!(token_map.get("red"), Some(&TokenType::TagValue));
+        let tokens = result.unwrap();
+        assert_eq!(tokens.len(), 3);
+        assert_eq!(find_token(&tokens, "colour"), Some(&TokenType::TagName));
+        assert_eq!(find_token(&tokens, "="), Some(&TokenType::ComparisonOp));
+        assert_eq!(find_token(&tokens, "red"), Some(&TokenType::TagValue));
     }
 
     #[test]
@@ -471,9 +506,10 @@ mod tests {
         let result = RuleParser::map_rule_tokens(rule);
 
         assert!(result.is_ok());
-        let token_map = result.unwrap();
-        assert_eq!(token_map.get("colour"), Some(&TokenType::TagName));
-        assert_eq!(token_map.get("="), Some(&TokenType::ComparisonOp));
-        assert_eq!(token_map.get("red"), Some(&TokenType::TagValue));
+        let tokens = result.unwrap();
+        assert_eq!(tokens.len(), 3);
+        assert_eq!(find_token(&tokens, "colour"), Some(&TokenType::TagName));
+        assert_eq!(find_token(&tokens, "="), Some(&TokenType::ComparisonOp));
+        assert_eq!(find_token(&tokens, "red"), Some(&TokenType::TagValue));
     }
 }
