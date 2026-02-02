@@ -87,12 +87,7 @@ fn test_write_tag_validates_empty_values() {
     let file_name = "test_empty_values.tags";
     setup_and_cleanup_test_file(file_name);
 
-    let result = write_with_base_dir(
-        file_name,
-        "colour".to_string(),
-        vec![],
-        TEST_CONFIG_DIR,
-    );
+    let result = write_with_base_dir(file_name, "colour".to_string(), vec![], TEST_CONFIG_DIR);
 
     assert!(result.is_err());
     if let Err(RulesError::TagParseError(msg)) = result {

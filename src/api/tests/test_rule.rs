@@ -83,12 +83,7 @@ fn test_write_rule_validates_rule() {
     let tags = create_test_tags();
 
     // Invalid: missing dash
-    let result = write_with_base_dir(
-        file_name,
-        "colour = red",
-        tags.clone(),
-        TEST_CONFIG_DIR,
-    );
+    let result = write_with_base_dir(file_name, "colour = red", tags.clone(), TEST_CONFIG_DIR);
     assert!(result.is_err());
 
     // Invalid: unknown tag
@@ -101,12 +96,7 @@ fn test_write_rule_validates_rule() {
     assert!(result.is_err());
 
     // Invalid: unknown value
-    let result = write_with_base_dir(
-        file_name,
-        "-colour = purple",
-        tags.clone(),
-        TEST_CONFIG_DIR,
-    );
+    let result = write_with_base_dir(file_name, "-colour = purple", tags.clone(), TEST_CONFIG_DIR);
     assert!(result.is_err());
 
     cleanup_test_file(file_name);
@@ -120,22 +110,10 @@ fn test_write_rule_appends_to_existing_file() {
     let tags = create_test_tags();
 
     // Write first rule
-    write_with_base_dir(
-        file_name,
-        "-colour = red",
-        tags.clone(),
-        TEST_CONFIG_DIR,
-    )
-    .unwrap();
+    write_with_base_dir(file_name, "-colour = red", tags.clone(), TEST_CONFIG_DIR).unwrap();
 
     // Write second rule
-    write_with_base_dir(
-        file_name,
-        "-size = large",
-        tags.clone(),
-        TEST_CONFIG_DIR,
-    )
-    .unwrap();
+    write_with_base_dir(file_name, "-size = large", tags.clone(), TEST_CONFIG_DIR).unwrap();
 
     // Read file and check both rules exist
     let content = fs::read_to_string(&format!("{}/{}", TEST_CONFIG_DIR, file_name)).unwrap();
@@ -153,21 +131,10 @@ fn test_write_rule_prevents_duplicates() {
     let tags = create_test_tags();
 
     // Write first rule
-    write_with_base_dir(
-        file_name,
-        "-colour = red",
-        tags.clone(),
-        TEST_CONFIG_DIR,
-    )
-    .unwrap();
+    write_with_base_dir(file_name, "-colour = red", tags.clone(), TEST_CONFIG_DIR).unwrap();
 
     // Try to write same rule again
-    let result = write_with_base_dir(
-        file_name,
-        "-colour = red",
-        tags.clone(),
-        TEST_CONFIG_DIR,
-    );
+    let result = write_with_base_dir(file_name, "-colour = red", tags.clone(), TEST_CONFIG_DIR);
     assert!(result.is_err());
     if let Err(RulesError::RuleParseError(msg)) = result {
         assert!(msg.contains("already exists"));

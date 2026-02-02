@@ -20,9 +20,10 @@ pub fn normalise(string: &str) -> Result<String, RulesError> {
 
     let dash_count = string.matches('-').count();
     if dash_count > 1 {
-        return Err(RulesError::RuleParseError(
-            format!("Rule should only contain 1 dash, found {}", dash_count),
-        ));
+        return Err(RulesError::RuleParseError(format!(
+            "Rule should only contain 1 dash, found {}",
+            dash_count
+        )));
     }
 
     Ok(string
