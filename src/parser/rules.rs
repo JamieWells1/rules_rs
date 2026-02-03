@@ -290,7 +290,7 @@ impl RuleParser {
     }
 
     fn string_to_rule(&self, rule_str: &str) -> Result<Rule, RulesError> {
-        // TODO: Parse string into AST representation
+        // NEXT TODO: Parse string into AST representation
         Self::validate_rule(&self, rule_str)?;
         unimplemented!()
     }
