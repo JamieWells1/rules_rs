@@ -37,12 +37,30 @@ impl RuleParser {
             return Ok(());
         }
 
-        let line = string::normalise(line)?;
-        let tokens: MappedRuleTokens = Self::map_rule_tokens(&line)?;
+        let original_line = line.to_string();
 
-        Self::check_rule_syntax(&tokens)?;
-        self.check_valid_tags(&tokens)?;
+        let line = string::normalise(line)
+            .map_err(|e| Self::add_error_context(e, &original_line))?;
+
+        let tokens: MappedRuleTokens = Self::map_rule_tokens(&line)
+            .map_err(|e| Self::add_error_context(e, &original_line))?;
+
+        Self::check_rule_syntax(&tokens)
+            .map_err(|e| Self::add_error_context(e, &original_line))?;
+
+        self.check_valid_tags(&tokens)
+            .map_err(|e| Self::add_error_context(e, &original_line))?;
+
         Ok(())
+    }
+
+    fn add_error_context(error: RulesError, rule: &str) -> RulesError {
+        match error {
+            RulesError::RuleParseError(msg) => {
+                RulesError::RuleParseError(format!("'{}': {}", rule, msg))
+            }
+            other => other,
+        }
     }
 
     /// Infers the expected type of the next token based on parsing context.
@@ -131,11 +149,32 @@ impl RuleParser {
         }
     }
 
+    // Expands a comma operator into its equivalent OR expression
+    fn expand_comma_operator(
+        tag_name: &str,
+        comparison_op: &str,
+        parsed_tokens: &mut Vec<String>,
+        mapped_token_list: &mut MappedRuleTokens,
+    ) {
+        parsed_tokens.push("|".to_string());
+        mapped_token_list.push(("|".to_string(), TokenType::LogicalOp));
+
+        parsed_tokens.push(tag_name.to_string());
+        mapped_token_list.push((tag_name.to_string(), TokenType::TagName));
+
+        parsed_tokens.push(comparison_op.to_string());
+        mapped_token_list.push((comparison_op.to_string(), TokenType::ComparisonOp));
+    }
+
     fn map_rule_tokens(rule: &str) -> Result<MappedRuleTokens, RulesError> {
         let mut mapped_token_list: Vec<(String, TokenType)> = Vec::new();
         let mut parsed_tokens: Vec<String> = Vec::new();
         let mut current_word = String::new();
         let mut parenthesis_depth = 0;
+
+        // For comma expansion
+        let mut last_tag_name: Option<String> = None;
+        let mut last_comparison_op: Option<String> = None;
 
         for c in rule.trim().chars() {
             if ALL_OP_CHARS.contains(&c) {
@@ -144,15 +183,47 @@ impl RuleParser {
                         Self::get_expected_token_type(&parsed_tokens, parenthesis_depth)?;
                     let token = current_word.trim().to_string();
                     parsed_tokens.push(token.clone());
-                    mapped_token_list.push((token, expected_token_type));
+                    mapped_token_list.push((token.clone(), expected_token_type));
+
+                    if expected_token_type == TokenType::TagName {
+                        last_tag_name = Some(token);
+                    }
+
                     current_word.clear();
+                }
+
+                // Expand comma to regular OR expression
+                if c == ',' {
+                    let tag_name = last_tag_name.as_ref().ok_or_else(|| {
+                        RulesError::RuleParseError(
+                            "Comma must follow a complete tag comparison".to_string(),
+                        )
+                    })?;
+                    let comparison_op = last_comparison_op.as_ref().ok_or_else(|| {
+                        RulesError::RuleParseError(
+                            "Comma must follow a complete tag comparison".to_string(),
+                        )
+                    })?;
+
+                    Self::expand_comma_operator(
+                        tag_name,
+                        comparison_op,
+                        &mut parsed_tokens,
+                        &mut mapped_token_list,
+                    );
+
+                    continue;
                 }
 
                 let expected_token_type =
                     Self::get_expected_token_type(&parsed_tokens, parenthesis_depth)?;
                 let token = c.to_string();
                 mapped_token_list.push((token.clone(), expected_token_type));
-                parsed_tokens.push(token);
+                parsed_tokens.push(token.clone());
+
+                if expected_token_type == TokenType::ComparisonOp {
+                    last_comparison_op = Some(token);
+                }
 
                 // Update parenthesis depth after processing token
                 if c == '(' {
@@ -172,7 +243,13 @@ impl RuleParser {
                         Self::get_expected_token_type(&parsed_tokens, parenthesis_depth)?;
                     let token = current_word.trim().to_string();
                     parsed_tokens.push(token.clone());
-                    mapped_token_list.push((token, expected_token_type));
+                    mapped_token_list.push((token.clone(), expected_token_type));
+
+                    // Track tag names for comma expansion
+                    if expected_token_type == TokenType::TagName {
+                        last_tag_name = Some(token);
+                    }
+
                     current_word.clear();
                 }
             } else {

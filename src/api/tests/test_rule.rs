@@ -185,3 +185,73 @@ fn test_write_rule_complex_rules() {
 
     cleanup_test_file(file_name);
 }
+
+#[test]
+fn test_write_rule_comma_syntax() {
+    let file_name = "test_comma.rules";
+    setup_and_cleanup_test_file(file_name);
+
+    let tags = create_test_tags();
+
+    // Valid comma rules - comma is shorthand for OR within same field
+    let valid_comma_rules = vec![
+        "-colour = red, blue",
+        "-colour = red, blue, green",
+        "-(colour = red, blue)",
+        "-(colour = red, blue) & size = large",
+        "-colour = red, blue & size = small",
+        "-size = small, medium, large",
+    ];
+
+    for rule in valid_comma_rules {
+        let result = write_with_base_dir(file_name, rule, tags.clone(), TEST_CONFIG_DIR);
+        assert!(result.is_ok(), "Failed to write valid comma rule: {}", rule);
+    }
+
+    cleanup_test_file(file_name);
+}
+
+#[test]
+fn test_write_rule_invalid_comma_syntax() {
+    let file_name = "test_invalid_comma.rules";
+    setup_and_cleanup_test_file(file_name);
+
+    let tags = create_test_tags();
+
+    // Invalid comma usage - comma must follow a tag value
+    let invalid_comma_rules = vec![
+        "-colour =, red",           // Comma after operator
+        "-,colour = red",           // Comma at start
+        "-colour = red,",           // Comma at end
+        "-(colour = red,) & size = large", // Comma before closing paren
+    ];
+
+    for rule in invalid_comma_rules {
+        let result = write_with_base_dir(file_name, rule, tags.clone(), TEST_CONFIG_DIR);
+        assert!(result.is_err(), "Should reject invalid comma rule: {}", rule);
+    }
+
+    cleanup_test_file(file_name);
+}
+
+#[test]
+fn test_write_rule_comma_with_different_operators() {
+    let file_name = "test_comma_operators.rules";
+    setup_and_cleanup_test_file(file_name);
+
+    let tags = create_test_tags();
+
+    // Test comma with both = and ! operators
+    let rules_with_different_ops = vec![
+        "-colour = red, blue",      // Equals with comma
+        "-colour ! red, blue",      // Not equals with comma
+        "-size ! small, medium",    // Not equals with multiple values
+    ];
+
+    for rule in rules_with_different_ops {
+        let result = write_with_base_dir(file_name, rule, tags.clone(), TEST_CONFIG_DIR);
+        assert!(result.is_ok(), "Failed to write rule with comma: {}", rule);
+    }
+
+    cleanup_test_file(file_name);
+}
