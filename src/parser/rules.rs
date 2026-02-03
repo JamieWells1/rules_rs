@@ -300,8 +300,8 @@ impl RuleParser {
         unimplemented!()
     }
 
-    /// Main entry point for parsing rule files.
-    /// Converts all .rules files into Disjunctive Normal Form (DNF) subrules.
+    // Main entry point for parsing rule files.
+    // Converts all .rules files into Disjunctive Normal Form (DNF) subrules.
     pub fn parse_rules(
         mapped_tags: HashMap<types::TagName, types::TagValues>,
     ) -> Result<Vec<SubRule>, RulesError> {
