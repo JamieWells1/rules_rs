@@ -2,29 +2,27 @@ use crate::Rules;
 use std::fs;
 use std::path::Path;
 
-const TEST_CONFIG_DIR: &str = "src/api/tests/test_config";
+fn setup_test_env(test_name: &str) -> String {
+    let test_dir = format!("src/api/tests/test_config/{}", test_name);
+    let _ = fs::create_dir_all(&test_dir);
 
-fn setup_test_tags(test_name: &str) -> String {
-    let _ = fs::create_dir_all(TEST_CONFIG_DIR);
-
-    let tags_file = format!("{}/{}.tags", TEST_CONFIG_DIR, test_name);
+    let tags_file = format!("{}/test.tags", test_dir);
     let tags_content = "# Test tags\n- colour: red, blue, green\n- shape: circle, square, rectangle\n- size: small, medium, large";
     fs::write(&tags_file, tags_content).unwrap();
-    tags_file
+    test_dir
 }
 
-fn cleanup_test_file(file_name: &str) {
-    let path = format!("{}/{}", TEST_CONFIG_DIR, file_name);
-    if Path::new(&path).exists() {
-        let _ = fs::remove_file(&path);
+fn cleanup_test_env(test_dir: &str) {
+    if Path::new(test_dir).exists() {
+        let _ = fs::remove_dir_all(test_dir);
     }
 }
 
 #[test]
 fn test_rules_api_load_and_validate() {
-    let _tags_file = setup_test_tags("test_load_validate");
+    let test_dir = setup_test_env("test_load_validate");
 
-    let mut rules = Rules::new(TEST_CONFIG_DIR);
+    let mut rules = Rules::new(&test_dir);
     rules.load_tags().unwrap();
 
     assert!(rules.validate_rule("- colour = red").is_ok());
@@ -55,14 +53,14 @@ fn test_rules_api_load_and_validate() {
 
     assert!(rules.validate_rule("- colour = purple").is_err());
 
-    cleanup_test_file("test_load_validate.tags");
+    cleanup_test_env(&test_dir);
 }
 
 #[test]
 fn test_rules_api_case_insensitive_loading() {
-    let _tags_file = setup_test_tags("test_case_insensitive");
+    let test_dir = setup_test_env("test_case_insensitive");
 
-    let mut rules = Rules::new(TEST_CONFIG_DIR);
+    let mut rules = Rules::new(&test_dir);
     rules.load_tags().unwrap();
 
     rules.debug_tags();
@@ -71,14 +69,14 @@ fn test_rules_api_case_insensitive_loading() {
     assert!(rules.validate_rule("- colour = blue").is_ok());
     assert!(rules.validate_rule("- shape = circle").is_ok());
 
-    cleanup_test_file("test_case_insensitive.tags");
+    cleanup_test_env(&test_dir);
 }
 
 #[test]
 fn test_rules_api_write_methods() {
-    let _tags_file = setup_test_tags("test_write_methods");
+    let test_dir = setup_test_env("test_write_methods");
 
-    let mut rules = Rules::new(TEST_CONFIG_DIR);
+    let mut rules = Rules::new(&test_dir);
     rules.load_tags().unwrap();
 
     rules
@@ -91,7 +89,5 @@ fn test_rules_api_write_methods() {
         .write_rule("api_test", "- colour = red & size = large")
         .unwrap();
 
-    cleanup_test_file("test_write_methods.tags");
-    cleanup_test_file("api_test.tags");
-    cleanup_test_file("api_test.rules");
+    cleanup_test_env(&test_dir);
 }

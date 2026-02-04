@@ -1,6 +1,6 @@
 // Parser for .rules files
 use crate::err::RulesError;
-use crate::parser::types::{MappedRuleTokens, Rule, TokenType};
+use crate::parser::types::{MappedRuleTokens, Rule, TokenType, TokenDepth};
 use crate::types::{self, SubRule};
 use crate::utils::file;
 use crate::utils::string;
@@ -61,7 +61,7 @@ impl RuleParser {
 
     fn get_expected_token_type(
         parsed_tokens: &Vec<String>,
-        parenthesis_depth: i32,
+        paren_depth: i32,
     ) -> Result<TokenType, RulesError> {
         // If no tokens yet, first token should be TagName or opening paren
         if parsed_tokens.is_empty() {
@@ -85,7 +85,7 @@ impl RuleParser {
                     Ok(TokenType::TagName) // Both '(' and TagName are valid here
                 } else if ch == ')' {
                     // After ')', could be LogicalOp, another ')', or end of expression
-                    if parenthesis_depth > 0 {
+                    if paren_depth > 0 {
                         // Still inside parens, could be ')' or LogicalOp
                         Ok(TokenType::LogicalOp) // Accept both
                     } else {
@@ -148,22 +148,23 @@ impl RuleParser {
         comparison_op: &str,
         parsed_tokens: &mut Vec<String>,
         mapped_token_list: &mut MappedRuleTokens,
+        paren_depth: i32,
     ) {
         parsed_tokens.push("|".to_string());
-        mapped_token_list.push(("|".to_string(), TokenType::LogicalOp));
+        mapped_token_list.push(("|".to_string(), TokenType::LogicalOp, paren_depth));
 
         parsed_tokens.push(tag_name.to_string());
-        mapped_token_list.push((tag_name.to_string(), TokenType::TagName));
+        mapped_token_list.push((tag_name.to_string(), TokenType::TagName, paren_depth));
 
         parsed_tokens.push(comparison_op.to_string());
-        mapped_token_list.push((comparison_op.to_string(), TokenType::ComparisonOp));
+        mapped_token_list.push((comparison_op.to_string(), TokenType::ComparisonOp, paren_depth));
     }
 
     fn map_rule_tokens(rule: &str) -> Result<MappedRuleTokens, RulesError> {
-        let mut mapped_token_list: Vec<(String, TokenType)> = Vec::new();
+        let mut mapped_token_list: Vec<(String, TokenType, TokenDepth)> = Vec::new();
         let mut parsed_tokens: Vec<String> = Vec::new();
         let mut current_word = String::new();
-        let mut parenthesis_depth = 0;
+        let mut paren_depth = 0;
 
         // For comma expansion
         let mut last_tag_name: Option<String> = None;
@@ -173,10 +174,10 @@ impl RuleParser {
             if ALL_OP_CHARS.contains(&c) {
                 if !current_word.is_empty() {
                     let expected_token_type =
-                        Self::get_expected_token_type(&parsed_tokens, parenthesis_depth)?;
+                        Self::get_expected_token_type(&parsed_tokens, paren_depth)?;
                     let token = current_word.trim().to_string();
                     parsed_tokens.push(token.clone());
-                    mapped_token_list.push((token.clone(), expected_token_type));
+                    mapped_token_list.push((token.clone(), expected_token_type, paren_depth));
 
                     if expected_token_type == TokenType::TagName {
                         last_tag_name = Some(token);
@@ -203,15 +204,16 @@ impl RuleParser {
                         comparison_op,
                         &mut parsed_tokens,
                         &mut mapped_token_list,
+                        paren_depth,
                     );
 
                     continue;
                 }
 
                 let expected_token_type =
-                    Self::get_expected_token_type(&parsed_tokens, parenthesis_depth)?;
+                    Self::get_expected_token_type(&parsed_tokens, paren_depth)?;
                 let token = c.to_string();
-                mapped_token_list.push((token.clone(), expected_token_type));
+                mapped_token_list.push((token.clone(), expected_token_type, paren_depth));
                 parsed_tokens.push(token.clone());
 
                 if expected_token_type == TokenType::ComparisonOp {
@@ -220,10 +222,10 @@ impl RuleParser {
 
                 // Update parenthesis depth after processing token
                 if c == '(' {
-                    parenthesis_depth += 1;
+                    paren_depth += 1;
                 } else if c == ')' {
-                    parenthesis_depth -= 1;
-                    if parenthesis_depth < 0 {
+                    paren_depth -= 1;
+                    if paren_depth < 0 {
                         return Err(RulesError::RuleParseError(
                             "Unmatched closing parenthesis".to_string(),
                         ));
@@ -233,10 +235,10 @@ impl RuleParser {
                 // Space acts as word boundary
                 if !current_word.is_empty() {
                     let expected_token_type =
-                        Self::get_expected_token_type(&parsed_tokens, parenthesis_depth)?;
+                        Self::get_expected_token_type(&parsed_tokens, paren_depth)?;
                     let token = current_word.trim().to_string();
                     parsed_tokens.push(token.clone());
-                    mapped_token_list.push((token.clone(), expected_token_type));
+                    mapped_token_list.push((token.clone(), expected_token_type, paren_depth));
 
                     // Track tag names for comma expansion
                     if expected_token_type == TokenType::TagName {
@@ -254,13 +256,13 @@ impl RuleParser {
         // Flush final word if present
         if !current_word.is_empty() {
             let expected_token_type =
-                Self::get_expected_token_type(&parsed_tokens, parenthesis_depth)?;
+                Self::get_expected_token_type(&parsed_tokens, paren_depth)?;
             let token = current_word.trim().to_string();
             parsed_tokens.push(token.clone());
-            mapped_token_list.push((token, expected_token_type));
+            mapped_token_list.push((token, expected_token_type, paren_depth));
         }
 
-        if parenthesis_depth != 0 {
+        if paren_depth != 0 {
             return Err(RulesError::RuleParseError(
                 "Unmatched opening parenthesis".to_string(),
             ));
@@ -272,7 +274,7 @@ impl RuleParser {
     fn check_rule_syntax(tokens: &MappedRuleTokens) -> Result<(), RulesError> {
         let mut prev_token: Option<&TokenType> = None;
 
-        for (key, token_type) in tokens.iter() {
+        for (key, token_type, _paren_depth) in tokens.iter() {
             if key == "(" || key == ")" {
                 continue;
             }
@@ -316,7 +318,7 @@ impl RuleParser {
     fn check_valid_tags(&self, tokens: &MappedRuleTokens) -> Result<(), RulesError> {
         let mut last_tag_name: Option<String> = None;
 
-        for (key, token_type) in tokens.iter() {
+        for (key, token_type, _paren_depth) in tokens.iter() {
             let key = String::from(key).to_lowercase();
             if *token_type == TokenType::TagName {
                 if key == "(" || key == ")" {
@@ -358,8 +360,23 @@ impl RuleParser {
     }
 
     fn string_to_rule(&self, rule_str: &str) -> Result<Rule, RulesError> {
-        // NEXT TODO: Parse string into AST representation
         Self::validate_rule(&self, rule_str)?;
+
+        let mut paren_depth: i32 = 0;
+        let mapped_tokens: Vec<(String, TokenType, TokenDepth)> = Self::map_rule_tokens(rule_str)?;
+
+        // Rule traversal
+        for (token, token_type, token_depth) in mapped_tokens {
+            if token == "(" {
+                paren_depth += 1;
+            }
+            else if token == ")" {
+                paren_depth -= 1;
+            }
+
+
+        }
+
         unimplemented!()
     }
 
@@ -403,13 +420,13 @@ mod tests {
     use super::*;
 
     // Find a token in the token list
-    fn find_token<'a>(tokens: &'a [(String, TokenType)], token_str: &str) -> Option<&'a TokenType> {
-        tokens.iter().find(|(s, _)| s == token_str).map(|(_, t)| t)
+    fn find_token<'a>(tokens: &'a [(String, TokenType, TokenDepth)], token_str: &str) -> Option<&'a TokenType> {
+        tokens.iter().find(|(s, _, _)| s == token_str).map(|(_, t, _)| t)
     }
 
     // Count occurrences of a token
-    fn count_token(tokens: &[(String, TokenType)], token_str: &str) -> usize {
-        tokens.iter().filter(|(s, _)| s == token_str).count()
+    fn count_token(tokens: &[(String, TokenType, TokenDepth)], token_str: &str) -> usize {
+        tokens.iter().filter(|(s, _, _)| s == token_str).count()
     }
 
     // Tests for get_expected_token_type
@@ -682,9 +699,9 @@ mod tests {
     #[test]
     fn test_check_rule_syntax_valid_simple() {
         let tokens = vec![
-            ("colour".to_string(), TokenType::TagName),
-            ("=".to_string(), TokenType::ComparisonOp),
-            ("red".to_string(), TokenType::TagValue),
+            ("colour".to_string(), TokenType::TagName, 0),
+            ("=".to_string(), TokenType::ComparisonOp, 0),
+            ("red".to_string(), TokenType::TagValue, 0),
         ];
         let result = RuleParser::check_rule_syntax(&tokens);
         assert!(result.is_ok());
@@ -693,11 +710,11 @@ mod tests {
     #[test]
     fn test_check_rule_syntax_valid_with_parentheses() {
         let tokens = vec![
-            ("(".to_string(), TokenType::TagName),
-            ("colour".to_string(), TokenType::TagName),
-            ("=".to_string(), TokenType::ComparisonOp),
-            ("red".to_string(), TokenType::TagValue),
-            (")".to_string(), TokenType::LogicalOp),
+            ("(".to_string(), TokenType::TagName, 1),
+            ("colour".to_string(), TokenType::TagName, 1),
+            ("=".to_string(), TokenType::ComparisonOp, 1),
+            ("red".to_string(), TokenType::TagValue, 1),
+            (")".to_string(), TokenType::LogicalOp, 1),
         ];
         let result = RuleParser::check_rule_syntax(&tokens);
         assert!(result.is_ok());
@@ -706,13 +723,13 @@ mod tests {
     #[test]
     fn test_check_rule_syntax_valid_with_logical_op() {
         let tokens = vec![
-            ("colour".to_string(), TokenType::TagName),
-            ("=".to_string(), TokenType::ComparisonOp),
-            ("red".to_string(), TokenType::TagValue),
-            ("&".to_string(), TokenType::LogicalOp),
-            ("size".to_string(), TokenType::TagName),
-            ("=".to_string(), TokenType::ComparisonOp),
-            ("large".to_string(), TokenType::TagValue),
+            ("colour".to_string(), TokenType::TagName, 1),
+            ("=".to_string(), TokenType::ComparisonOp, 1),
+            ("red".to_string(), TokenType::TagValue, 1),
+            ("&".to_string(), TokenType::LogicalOp, 1),
+            ("size".to_string(), TokenType::TagName, 1),
+            ("=".to_string(), TokenType::ComparisonOp, 1),
+            ("large".to_string(), TokenType::TagValue, 1),
         ];
         let result = RuleParser::check_rule_syntax(&tokens);
         assert!(result.is_ok());
@@ -721,17 +738,17 @@ mod tests {
     #[test]
     fn test_check_rule_syntax_valid_complex() {
         let tokens = vec![
-            ("(".to_string(), TokenType::TagName),
-            ("colour".to_string(), TokenType::TagName),
-            ("=".to_string(), TokenType::ComparisonOp),
-            ("red".to_string(), TokenType::TagValue),
-            (")".to_string(), TokenType::LogicalOp),
-            ("&".to_string(), TokenType::LogicalOp),
-            ("(".to_string(), TokenType::TagName),
-            ("size".to_string(), TokenType::TagName),
-            ("!".to_string(), TokenType::ComparisonOp),
-            ("small".to_string(), TokenType::TagValue),
-            (")".to_string(), TokenType::LogicalOp),
+            ("(".to_string(), TokenType::TagName, 1),
+            ("colour".to_string(), TokenType::TagName, 1),
+            ("=".to_string(), TokenType::ComparisonOp, 1),
+            ("red".to_string(), TokenType::TagValue, 1),
+            (")".to_string(), TokenType::LogicalOp, 1),
+            ("&".to_string(), TokenType::LogicalOp, 0),
+            ("(".to_string(), TokenType::TagName, 1),
+            ("size".to_string(), TokenType::TagName, 1),
+            ("!".to_string(), TokenType::ComparisonOp, 1),
+            ("small".to_string(), TokenType::TagValue, 1),
+            (")".to_string(), TokenType::LogicalOp, 1),
         ];
         let result = RuleParser::check_rule_syntax(&tokens);
         assert!(result.is_ok());
@@ -740,8 +757,8 @@ mod tests {
     #[test]
     fn test_check_rule_syntax_starts_with_comparison_op() {
         let tokens = vec![
-            ("=".to_string(), TokenType::ComparisonOp),
-            ("red".to_string(), TokenType::TagValue),
+            ("=".to_string(), TokenType::ComparisonOp, 0),
+            ("red".to_string(), TokenType::TagValue, 0),
         ];
         let result = RuleParser::check_rule_syntax(&tokens);
         assert!(result.is_err());
@@ -755,8 +772,8 @@ mod tests {
     #[test]
     fn test_check_rule_syntax_starts_with_tag_value() {
         let tokens = vec![
-            ("red".to_string(), TokenType::TagValue),
-            ("&".to_string(), TokenType::LogicalOp),
+            ("red".to_string(), TokenType::TagValue, 0),
+            ("&".to_string(), TokenType::LogicalOp, 0),
         ];
         let result = RuleParser::check_rule_syntax(&tokens);
         assert!(result.is_err());
@@ -770,10 +787,10 @@ mod tests {
     #[test]
     fn test_check_rule_syntax_two_tag_names_in_a_row() {
         let tokens = vec![
-            ("colour".to_string(), TokenType::TagName),
-            ("size".to_string(), TokenType::TagName),
-            ("=".to_string(), TokenType::ComparisonOp),
-            ("red".to_string(), TokenType::TagValue),
+            ("colour".to_string(), TokenType::TagName, 0),
+            ("size".to_string(), TokenType::TagName, 0),
+            ("=".to_string(), TokenType::ComparisonOp, 0),
+            ("red".to_string(), TokenType::TagValue, 0),
         ];
         let result = RuleParser::check_rule_syntax(&tokens);
         assert!(result.is_err());
@@ -787,10 +804,10 @@ mod tests {
     #[test]
     fn test_check_rule_syntax_two_comparison_ops_in_a_row() {
         let tokens = vec![
-            ("colour".to_string(), TokenType::TagName),
-            ("=".to_string(), TokenType::ComparisonOp),
-            ("!".to_string(), TokenType::ComparisonOp),
-            ("red".to_string(), TokenType::TagValue),
+            ("colour".to_string(), TokenType::TagName, 0),
+            ("=".to_string(), TokenType::ComparisonOp, 0),
+            ("!".to_string(), TokenType::ComparisonOp, 0),
+            ("red".to_string(), TokenType::TagValue, 0),
         ];
         let result = RuleParser::check_rule_syntax(&tokens);
         assert!(result.is_err());
@@ -804,10 +821,10 @@ mod tests {
     #[test]
     fn test_check_rule_syntax_two_tag_values_in_a_row() {
         let tokens = vec![
-            ("colour".to_string(), TokenType::TagName),
-            ("=".to_string(), TokenType::ComparisonOp),
-            ("red".to_string(), TokenType::TagValue),
-            ("blue".to_string(), TokenType::TagValue),
+            ("colour".to_string(), TokenType::TagName, 0),
+            ("=".to_string(), TokenType::ComparisonOp, 0),
+            ("red".to_string(), TokenType::TagValue, 0),
+            ("blue".to_string(), TokenType::TagValue, 0),
         ];
         let result = RuleParser::check_rule_syntax(&tokens);
         assert!(result.is_err());
@@ -821,12 +838,12 @@ mod tests {
     #[test]
     fn test_check_rule_syntax_two_logical_ops_in_a_row() {
         let tokens = vec![
-            ("colour".to_string(), TokenType::TagName),
-            ("=".to_string(), TokenType::ComparisonOp),
-            ("red".to_string(), TokenType::TagValue),
-            ("&".to_string(), TokenType::LogicalOp),
-            ("|".to_string(), TokenType::LogicalOp),
-            ("size".to_string(), TokenType::TagName),
+            ("colour".to_string(), TokenType::TagName, 0),
+            ("=".to_string(), TokenType::ComparisonOp, 0),
+            ("red".to_string(), TokenType::TagValue, 0),
+            ("&".to_string(), TokenType::LogicalOp, 0),
+            ("|".to_string(), TokenType::LogicalOp, 0),
+            ("size".to_string(), TokenType::TagName, 0),
         ];
         let result = RuleParser::check_rule_syntax(&tokens);
         assert!(result.is_err());
@@ -840,11 +857,11 @@ mod tests {
     #[test]
     fn test_check_rule_syntax_ends_with_tag_name() {
         let tokens = vec![
-            ("colour".to_string(), TokenType::TagName),
-            ("=".to_string(), TokenType::ComparisonOp),
-            ("red".to_string(), TokenType::TagValue),
-            ("&".to_string(), TokenType::LogicalOp),
-            ("size".to_string(), TokenType::TagName),
+            ("colour".to_string(), TokenType::TagName, 0),
+            ("=".to_string(), TokenType::ComparisonOp, 0),
+            ("red".to_string(), TokenType::TagValue, 0),
+            ("&".to_string(), TokenType::LogicalOp, 0),
+            ("size".to_string(), TokenType::TagName, 0),
         ];
         let result = RuleParser::check_rule_syntax(&tokens);
         assert!(result.is_err());
@@ -858,8 +875,8 @@ mod tests {
     #[test]
     fn test_check_rule_syntax_ends_with_comparison_op() {
         let tokens = vec![
-            ("colour".to_string(), TokenType::TagName),
-            ("=".to_string(), TokenType::ComparisonOp),
+            ("colour".to_string(), TokenType::TagName, 0),
+            ("=".to_string(), TokenType::ComparisonOp, 0),
         ];
         let result = RuleParser::check_rule_syntax(&tokens);
         assert!(result.is_err());
@@ -873,10 +890,10 @@ mod tests {
     #[test]
     fn test_check_rule_syntax_ends_with_logical_op() {
         let tokens = vec![
-            ("colour".to_string(), TokenType::TagName),
-            ("=".to_string(), TokenType::ComparisonOp),
-            ("red".to_string(), TokenType::TagValue),
-            ("&".to_string(), TokenType::LogicalOp),
+            ("colour".to_string(), TokenType::TagName, 0),
+            ("=".to_string(), TokenType::ComparisonOp, 0),
+            ("red".to_string(), TokenType::TagValue, 0),
+            ("&".to_string(), TokenType::LogicalOp, 0),
         ];
         let result = RuleParser::check_rule_syntax(&tokens);
         assert!(result.is_err());
@@ -902,8 +919,8 @@ mod tests {
     #[test]
     fn test_check_rule_syntax_only_parentheses() {
         let tokens = vec![
-            ("(".to_string(), TokenType::TagName),
-            (")".to_string(), TokenType::LogicalOp),
+            ("(".to_string(), TokenType::TagName, 1),
+            (")".to_string(), TokenType::LogicalOp, 1),
         ];
         let result = RuleParser::check_rule_syntax(&tokens);
         assert!(result.is_err());
@@ -944,13 +961,13 @@ mod tests {
         };
 
         let tokens = vec![
-            ("colour".to_string(), TokenType::TagName),
-            ("=".to_string(), TokenType::ComparisonOp),
-            ("red".to_string(), TokenType::TagValue),
-            ("&".to_string(), TokenType::LogicalOp),
-            ("size".to_string(), TokenType::TagName),
-            ("=".to_string(), TokenType::ComparisonOp),
-            ("large".to_string(), TokenType::TagValue),
+            ("colour".to_string(), TokenType::TagName, 0),
+            ("=".to_string(), TokenType::ComparisonOp, 0),
+            ("red".to_string(), TokenType::TagValue, 0),
+            ("&".to_string(), TokenType::LogicalOp, 0),
+            ("size".to_string(), TokenType::TagName, 0),
+            ("=".to_string(), TokenType::ComparisonOp, 0),
+            ("large".to_string(), TokenType::TagValue, 0),
         ];
 
         let result = parser.check_valid_tags(&tokens);
@@ -964,9 +981,9 @@ mod tests {
         };
 
         let tokens = vec![
-            ("invalid_tag".to_string(), TokenType::TagName),
-            ("=".to_string(), TokenType::ComparisonOp),
-            ("red".to_string(), TokenType::TagValue),
+            ("invalid_tag".to_string(), TokenType::TagName, 0),
+            ("=".to_string(), TokenType::ComparisonOp, 0),
+            ("red".to_string(), TokenType::TagValue, 0),
         ];
 
         let result = parser.check_valid_tags(&tokens);
@@ -986,9 +1003,9 @@ mod tests {
         };
 
         let tokens = vec![
-            ("colour".to_string(), TokenType::TagName),
-            ("=".to_string(), TokenType::ComparisonOp),
-            ("purple".to_string(), TokenType::TagValue),
+            ("colour".to_string(), TokenType::TagName, 0),
+            ("=".to_string(), TokenType::ComparisonOp, 0),
+            ("purple".to_string(), TokenType::TagValue, 0),
         ];
 
         let result = parser.check_valid_tags(&tokens);
@@ -1008,11 +1025,11 @@ mod tests {
         };
 
         let tokens = vec![
-            ("(".to_string(), TokenType::TagName),
-            ("colour".to_string(), TokenType::TagName),
-            ("=".to_string(), TokenType::ComparisonOp),
-            ("blue".to_string(), TokenType::TagValue),
-            (")".to_string(), TokenType::LogicalOp),
+            ("(".to_string(), TokenType::TagName, 1),
+            ("colour".to_string(), TokenType::TagName, 1),
+            ("=".to_string(), TokenType::ComparisonOp, 1),
+            ("blue".to_string(), TokenType::TagValue, 1),
+            (")".to_string(), TokenType::LogicalOp, 1),
         ];
 
         let result = parser.check_valid_tags(&tokens);
@@ -1026,17 +1043,17 @@ mod tests {
         };
 
         let tokens = vec![
-            ("colour".to_string(), TokenType::TagName),
-            ("=".to_string(), TokenType::ComparisonOp),
-            ("red".to_string(), TokenType::TagValue),
-            ("&".to_string(), TokenType::LogicalOp),
-            ("size".to_string(), TokenType::TagName),
-            ("!".to_string(), TokenType::ComparisonOp),
-            ("small".to_string(), TokenType::TagValue),
-            ("|".to_string(), TokenType::LogicalOp),
-            ("shape".to_string(), TokenType::TagName),
-            ("=".to_string(), TokenType::ComparisonOp),
-            ("circle".to_string(), TokenType::TagValue),
+            ("colour".to_string(), TokenType::TagName, 0),
+            ("=".to_string(), TokenType::ComparisonOp, 0),
+            ("red".to_string(), TokenType::TagValue, 0),
+            ("&".to_string(), TokenType::LogicalOp, 0),
+            ("size".to_string(), TokenType::TagName, 0),
+            ("!".to_string(), TokenType::ComparisonOp, 0),
+            ("small".to_string(), TokenType::TagValue, 0),
+            ("|".to_string(), TokenType::LogicalOp, 0),
+            ("shape".to_string(), TokenType::TagName, 0),
+            ("=".to_string(), TokenType::ComparisonOp, 0),
+            ("circle".to_string(), TokenType::TagValue, 0),
         ];
 
         let result = parser.check_valid_tags(&tokens);

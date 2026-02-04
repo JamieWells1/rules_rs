@@ -8,8 +8,10 @@ pub enum TokenType {
     LogicalOp,    // &
 }
 
-// Tokens and their type -- e.g. [("colour", TagName), ("=", ComparisonOp)]
-pub type MappedRuleTokens = Vec<(String, TokenType)>;
+pub type TokenDepth = i32;
+
+// Tokens, their type and their parenthesis depth -- e.g. [("colour", TagName, 2), ("=", ComparisonOp, 0)]
+pub type MappedRuleTokens = Vec<(String, TokenType, TokenDepth)>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
