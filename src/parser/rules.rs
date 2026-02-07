@@ -50,7 +50,7 @@ impl RuleParser {
             string::normalise(line).map_err(|e| Self::add_error_context(e, &original_line))?;
 
         let tokens: MappedRuleTokens =
-            Self::map_rule_tokens(&line).map_err(|e| Self::add_error_context(e, &original_line))?;
+            Self::map_rule_tokens(&Self::tokenise_rule(&line.to_string())?);
 
         Self::check_rule_syntax(&tokens).map_err(|e| Self::add_error_context(e, &original_line))?;
 
@@ -152,7 +152,7 @@ impl RuleParser {
         }
     }
 
-    fn tokenise_rule(rule: &str) -> Result<Vec<String>, RulesError> {
+    fn tokenise_rule(rule: &String) -> Result<Vec<String>, RulesError> {
         let mut parsed_tokens: Vec<String> = Vec::new();
         let mut current_word = String::new();
         let mut paren_depth = 0;
@@ -247,17 +247,15 @@ impl RuleParser {
         Ok(parsed_tokens)
     }
 
-    fn map_rule_tokens(rule: &str) -> Result<MappedRuleTokens, RulesError> {
-        let tokens = Self::tokenise_rule(rule)?;
-
+    fn map_rule_tokens(tokens: &Vec<String>) -> MappedRuleTokens {
         let mut mapped_token_list: Vec<(String, TokenType, TokenDepth)> = Vec::new();
         let mut parsed_tokens: Vec<String> = Vec::new();
         let mut paren_depth = 0;
 
         for token in tokens {
-            let expected_token_type = Self::get_expected_token_type(&parsed_tokens, paren_depth)?;
+            let expected_token_type = Self::get_expected_token_type(&parsed_tokens, paren_depth);
             parsed_tokens.push(token.clone());
-            mapped_token_list.push((token.clone(), expected_token_type, paren_depth));
+            mapped_token_list.push((token.clone(), expected_token_type.unwrap(), paren_depth));
 
             if token == "(" {
                 paren_depth += 1;
@@ -266,7 +264,7 @@ impl RuleParser {
             }
         }
 
-        Ok(mapped_token_list)
+        mapped_token_list
     }
 
     fn check_rule_syntax(tokens: &MappedRuleTokens) -> Result<(), RulesError> {
@@ -357,9 +355,9 @@ impl RuleParser {
         Ok(())
     }
 
-    fn find_lowest_prec_op_index(rule: &str) -> usize {
+    fn find_lowest_prec_op_index(tokens: &Vec<String>) -> usize {
         let mut op_index: usize = 0;
-        let mapped_tokens: MappedRuleTokens = Self::map_rule_tokens(rule)?;
+        let mapped_tokens: MappedRuleTokens = Self::map_rule_tokens(&tokens);
         for (i, token) in mapped_tokens.iter().enumerate() {
             continue;
         }
@@ -453,17 +451,10 @@ impl RuleParser {
         // Tokenize the rule string into a vector of tokens
         // E.g., "colour = red & size = large" becomes:
         // ["colour", "=", "red", "&", "size", "=", "large"]
-        let tokens = Self::tokenise_rule(rule_str)?;
+        let tokens = Self::tokenise_rule(&rule_str.to_string())?;
+        let root: Node = Self::build_ast(tokens)?;
 
-        // Build the AST recursively from the tokens
-        // This creates a tree structure where:
-        // - Internal nodes are operators (&, |, =, !)
-        // - Leaf nodes are comparisons (colour = red)
-        let root = Self::build_ast(tokens)?;
-
-        // Wrap the root node in a Rule struct
-        // (The Rule struct contains a Vec<Node>, but for now we just have one root)
-        Ok(Rule { nodes: vec![root] })
+        Ok(Rule { root_node: root })
     }
 
     fn rule_to_dnf_subrule(&self, rule: Rule) -> Result<SubRule, RulesError> {
@@ -625,120 +616,91 @@ mod tests {
         assert_eq!(result.unwrap(), TokenType::TagName);
     }
 
-    // Tests for map_rule_tokens
+    // Tests for tokenise_rule (which now does the parsing)
     #[test]
-    fn test_map_rule_tokens_simple_rule() {
+    fn test_tokenise_rule_simple_rule() {
         let rule = "colour = red";
-        let result = RuleParser::map_rule_tokens(rule);
+        let result = RuleParser::tokenise_rule(&rule.to_string());
 
         assert!(result.is_ok());
         let tokens = result.unwrap();
         assert_eq!(tokens.len(), 3);
-        assert_eq!(find_token(&tokens, "colour"), Some(&TokenType::TagName));
-        assert_eq!(find_token(&tokens, "="), Some(&TokenType::ComparisonOp));
-        assert_eq!(find_token(&tokens, "red"), Some(&TokenType::TagValue));
+        assert_eq!(tokens, vec!["colour", "=", "red"]);
     }
 
     #[test]
-    fn test_map_rule_tokens_with_parentheses() {
+    fn test_tokenise_rule_with_parentheses() {
         let rule = "(colour = red)";
-        let result = RuleParser::map_rule_tokens(rule);
+        let result = RuleParser::tokenise_rule(&rule.to_string());
 
         assert!(result.is_ok());
         let tokens = result.unwrap();
         assert_eq!(tokens.len(), 5);
-        assert_eq!(find_token(&tokens, "("), Some(&TokenType::TagName));
-        assert_eq!(find_token(&tokens, "colour"), Some(&TokenType::TagName));
-        assert_eq!(find_token(&tokens, "="), Some(&TokenType::ComparisonOp));
-        assert_eq!(find_token(&tokens, "red"), Some(&TokenType::TagValue));
-        assert_eq!(find_token(&tokens, ")"), Some(&TokenType::LogicalOp));
+        assert_eq!(tokens, vec!["(", "colour", "=", "red", ")"]);
     }
 
     #[test]
-    fn test_map_rule_tokens_nested_parentheses() {
+    fn test_tokenise_rule_nested_parentheses() {
         let rule = "((colour = red))";
-        let result = RuleParser::map_rule_tokens(rule);
+        let result = RuleParser::tokenise_rule(&rule.to_string());
 
         assert!(result.is_ok());
         let tokens = result.unwrap();
-        // Should have 2 open parens, 2 close parens, colour, =, red
-        assert_eq!(count_token(&tokens, "("), 2);
-        assert_eq!(count_token(&tokens, ")"), 2);
-        assert_eq!(find_token(&tokens, "colour"), Some(&TokenType::TagName));
-        assert_eq!(find_token(&tokens, "="), Some(&TokenType::ComparisonOp));
-        assert_eq!(find_token(&tokens, "red"), Some(&TokenType::TagValue));
+        assert_eq!(tokens.len(), 7);
+        assert_eq!(tokens, vec!["(", "(", "colour", "=", "red", ")", ")"]);
     }
 
     #[test]
-    fn test_map_rule_tokens_with_and_operator() {
+    fn test_tokenise_rule_with_and_operator() {
         let rule = "colour = red & size = large";
-        let result = RuleParser::map_rule_tokens(rule);
+        let result = RuleParser::tokenise_rule(&rule.to_string());
 
         assert!(result.is_ok());
         let tokens = result.unwrap();
         assert_eq!(tokens.len(), 7);
-        assert_eq!(find_token(&tokens, "colour"), Some(&TokenType::TagName));
-        assert_eq!(find_token(&tokens, "red"), Some(&TokenType::TagValue));
-        assert_eq!(find_token(&tokens, "&"), Some(&TokenType::LogicalOp));
-        assert_eq!(find_token(&tokens, "size"), Some(&TokenType::TagName));
-        assert_eq!(find_token(&tokens, "large"), Some(&TokenType::TagValue));
-        // Check that both = operators are present
-        assert_eq!(count_token(&tokens, "="), 2);
+        assert_eq!(tokens, vec!["colour", "=", "red", "&", "size", "=", "large"]);
     }
 
     #[test]
-    fn test_map_rule_tokens_with_or_operator() {
+    fn test_tokenise_rule_with_or_operator() {
         let rule = "colour = red | colour = blue";
-        let result = RuleParser::map_rule_tokens(rule);
+        let result = RuleParser::tokenise_rule(&rule.to_string());
 
         assert!(result.is_ok());
         let tokens = result.unwrap();
         assert_eq!(tokens.len(), 7);
-        // "colour" appears twice
-        assert_eq!(count_token(&tokens, "colour"), 2);
-        assert_eq!(find_token(&tokens, "|"), Some(&TokenType::LogicalOp));
-        assert_eq!(find_token(&tokens, "red"), Some(&TokenType::TagValue));
-        assert_eq!(find_token(&tokens, "blue"), Some(&TokenType::TagValue));
-        // Check that both = operators are present
-        assert_eq!(count_token(&tokens, "="), 2);
+        assert_eq!(tokens, vec!["colour", "=", "red", "|", "colour", "=", "blue"]);
     }
 
     #[test]
-    fn test_map_rule_tokens_with_not_equals() {
+    fn test_tokenise_rule_with_not_equals() {
         let rule = "colour ! red";
-        let result = RuleParser::map_rule_tokens(rule);
+        let result = RuleParser::tokenise_rule(&rule.to_string());
 
         assert!(result.is_ok());
         let tokens = result.unwrap();
         assert_eq!(tokens.len(), 3);
-        assert_eq!(find_token(&tokens, "colour"), Some(&TokenType::TagName));
-        assert_eq!(find_token(&tokens, "!"), Some(&TokenType::ComparisonOp));
-        assert_eq!(find_token(&tokens, "red"), Some(&TokenType::TagValue));
+        assert_eq!(tokens, vec!["colour", "!", "red"]);
     }
 
     #[test]
-    fn test_map_rule_tokens_complex_nested() {
+    fn test_tokenise_rule_complex_nested() {
         let rule = "((colour = red) & (size = large))";
-        let result = RuleParser::map_rule_tokens(rule);
+        let result = RuleParser::tokenise_rule(&rule.to_string());
 
         assert!(result.is_ok());
         let tokens = result.unwrap();
-        assert_eq!(find_token(&tokens, "colour"), Some(&TokenType::TagName));
-        assert_eq!(find_token(&tokens, "red"), Some(&TokenType::TagValue));
-        assert_eq!(find_token(&tokens, "&"), Some(&TokenType::LogicalOp));
-        assert_eq!(find_token(&tokens, "size"), Some(&TokenType::TagName));
-        assert_eq!(find_token(&tokens, "large"), Some(&TokenType::TagValue));
-        // Check that both = operators are present
-        assert_eq!(count_token(&tokens, "="), 2);
-        // Check parentheses counts
-        assert_eq!(count_token(&tokens, "("), 3);
-        assert_eq!(count_token(&tokens, ")"), 3);
+        assert_eq!(tokens.len(), 13);
+        assert_eq!(
+            tokens,
+            vec!["(", "(", "colour", "=", "red", ")", "&", "(", "size", "=", "large", ")", ")"]
+        );
     }
 
     #[test]
-    fn test_map_rule_tokens_unmatched_opening_paren() {
+    fn test_tokenise_rule_unmatched_opening_paren() {
         let rule = "(colour = red";
-        let result = RuleParser::map_rule_tokens(rule);
+        let result = RuleParser::tokenise_rule(&rule.to_string());
 
         assert!(result.is_err());
         if let Err(RulesError::RuleParseError(msg)) = result {
@@ -749,9 +711,9 @@ mod tests {
     }
 
     #[test]
-    fn test_map_rule_tokens_unmatched_closing_paren() {
+    fn test_tokenise_rule_unmatched_closing_paren() {
         let rule = "colour = red)";
-        let result = RuleParser::map_rule_tokens(rule);
+        let result = RuleParser::tokenise_rule(&rule.to_string());
 
         assert!(result.is_err());
         if let Err(RulesError::RuleParseError(msg)) = result {
@@ -762,29 +724,59 @@ mod tests {
     }
 
     #[test]
-    fn test_map_rule_tokens_extra_whitespace() {
+    fn test_tokenise_rule_extra_whitespace() {
         let rule = "  colour   =   red  ";
-        let result = RuleParser::map_rule_tokens(rule);
+        let result = RuleParser::tokenise_rule(&rule.to_string());
 
         assert!(result.is_ok());
         let tokens = result.unwrap();
         assert_eq!(tokens.len(), 3);
-        assert_eq!(find_token(&tokens, "colour"), Some(&TokenType::TagName));
-        assert_eq!(find_token(&tokens, "="), Some(&TokenType::ComparisonOp));
-        assert_eq!(find_token(&tokens, "red"), Some(&TokenType::TagValue));
+        assert_eq!(tokens, vec!["colour", "=", "red"]);
     }
 
     #[test]
-    fn test_map_rule_tokens_no_spaces() {
+    fn test_tokenise_rule_no_spaces() {
         let rule = "colour=red";
-        let result = RuleParser::map_rule_tokens(rule);
+        let result = RuleParser::tokenise_rule(&rule.to_string());
 
         assert!(result.is_ok());
         let tokens = result.unwrap();
         assert_eq!(tokens.len(), 3);
-        assert_eq!(find_token(&tokens, "colour"), Some(&TokenType::TagName));
-        assert_eq!(find_token(&tokens, "="), Some(&TokenType::ComparisonOp));
-        assert_eq!(find_token(&tokens, "red"), Some(&TokenType::TagValue));
+        assert_eq!(tokens, vec!["colour", "=", "red"]);
+    }
+
+    // Tests for map_rule_tokens (now takes Vec<String> and returns MappedRuleTokens)
+    #[test]
+    fn test_map_rule_tokens_simple() {
+        let tokens = vec!["colour".to_string(), "=".to_string(), "red".to_string()];
+        let mapped = RuleParser::map_rule_tokens(&tokens);
+
+        assert_eq!(mapped.len(), 3);
+        assert_eq!(find_token(&mapped, "colour"), Some(&TokenType::TagName));
+        assert_eq!(find_token(&mapped, "="), Some(&TokenType::ComparisonOp));
+        assert_eq!(find_token(&mapped, "red"), Some(&TokenType::TagValue));
+    }
+
+    #[test]
+    fn test_map_rule_tokens_with_logical_op() {
+        let tokens = vec![
+            "colour".to_string(),
+            "=".to_string(),
+            "red".to_string(),
+            "&".to_string(),
+            "size".to_string(),
+            "=".to_string(),
+            "large".to_string(),
+        ];
+        let mapped = RuleParser::map_rule_tokens(&tokens);
+
+        assert_eq!(mapped.len(), 7);
+        assert_eq!(find_token(&mapped, "colour"), Some(&TokenType::TagName));
+        assert_eq!(find_token(&mapped, "red"), Some(&TokenType::TagValue));
+        assert_eq!(find_token(&mapped, "&"), Some(&TokenType::LogicalOp));
+        assert_eq!(find_token(&mapped, "size"), Some(&TokenType::TagName));
+        assert_eq!(find_token(&mapped, "large"), Some(&TokenType::TagValue));
+        assert_eq!(count_token(&mapped, "="), 2);
     }
 
     // Tests for check_rule_syntax
