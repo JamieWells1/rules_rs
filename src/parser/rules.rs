@@ -248,10 +248,8 @@ impl RuleParser {
     }
 
     fn map_rule_tokens(rule: &str) -> Result<MappedRuleTokens, RulesError> {
-        // First tokenize the rule into strings
         let tokens = Self::tokenise_rule(rule)?;
 
-        // Now add type and depth information to each token
         let mut mapped_token_list: Vec<(String, TokenType, TokenDepth)> = Vec::new();
         let mut parsed_tokens: Vec<String> = Vec::new();
         let mut paren_depth = 0;
@@ -261,7 +259,6 @@ impl RuleParser {
             parsed_tokens.push(token.clone());
             mapped_token_list.push((token.clone(), expected_token_type, paren_depth));
 
-            // Update parenthesis depth
             if token == "(" {
                 paren_depth += 1;
             } else if token == ")" {
