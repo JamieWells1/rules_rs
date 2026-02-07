@@ -31,10 +31,7 @@ pub struct Node {
     pub right: Option<Box<Node>>,
 }
 
-// Node represented as strings -- e.g. ("|", ["colour", "=", "blue"], ["colour", "!", "red"])
-pub type NodeStr = (String, Vec<String>, Vec<String>);
-
-pub struct Rule {
+pub struct AstRule {
     pub root_node: Node,
 }
 

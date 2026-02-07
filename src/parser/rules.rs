@@ -1,14 +1,14 @@
 // Parser for .rules files
 use crate::err::RulesError;
-use crate::parser::types::{MappedRuleTokens, Node, NodeStr, Rule, TokenDepth, TokenType};
+use crate::parser::types::{MappedRuleTokens, Node, AstRule, TokenDepth, TokenType};
 use crate::types::{self, SubRule};
 use crate::utils::file;
 use crate::utils::string;
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap};
 use std::sync::LazyLock;
 
-static TOKEN_PRECEDENCE: LazyLock<HashMap<&String, i32>> = LazyLock::new(|| {
+static TOKEN_PRECEDENCE: LazyLock<HashMap<&str, i32>> = LazyLock::new(|| {
     let mut m = HashMap::new();
     m.insert("&", 0);
     m.insert("|", 1);
@@ -363,7 +363,7 @@ impl RuleParser {
             let paren_depth: i32 = token.2;
             let token: &String = &token.0;
 
-            if let Some(&token_prec) = TOKEN_PRECEDENCE.get(token) {
+            if let Some(&token_prec) = TOKEN_PRECEDENCE.get(token.as_str()) {
                 let mut reassign: bool = false;
 
                 if let Some(lowest) = lowest_prec_token {
@@ -466,7 +466,7 @@ impl RuleParser {
         })
     }
 
-    fn string_to_rule(&self, rule_str: &str) -> Result<Rule, RulesError> {
+    fn string_to_rule(&self, rule_str: &str) -> Result<AstRule, RulesError> {
         // Validate the rule syntax first
         Self::validate_rule(&self, rule_str)?;
 
@@ -476,11 +476,10 @@ impl RuleParser {
         let tokens = Self::tokenise_rule(&rule_str.to_string())?;
         let root: Node = Self::build_ast(tokens)?;
 
-        Ok(Rule { root_node: root })
+        Ok(AstRule { root_node: root })
     }
 
-    fn rule_to_dnf_subrule(&self, rule: Rule) -> Result<SubRule, RulesError> {
-        // TODO: Convert AST to Disjunctive Normal Form
+    fn rule_to_dnf_subrule(&self, rule: AstRule) -> Result<SubRule, RulesError> {
         unimplemented!()
     }
 
@@ -503,8 +502,8 @@ impl RuleParser {
                 }
 
                 // Parse string to AST, then convert to DNF representation
-                let rule = parser.string_to_rule(line)?;
-                let subrule = parser.rule_to_dnf_subrule(rule)?;
+                let rule: AstRule = parser.string_to_rule(line)?;
+                let subrule: SubRule = parser.rule_to_dnf_subrule(rule)?;
 
                 dnf_subrules.push(subrule);
             }
