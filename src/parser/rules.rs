@@ -8,12 +8,12 @@ use crate::utils::string;
 use std::collections::{HashMap, VecDeque};
 use std::sync::LazyLock;
 
-static TOKEN_PRECEDENCE: LazyLock<HashMap<&str, i32>> = LazyLock::new(|| {
+static TOKEN_PRECEDENCE: LazyLock<HashMap<&String, i32>> = LazyLock::new(|| {
     let mut m = HashMap::new();
     m.insert("&", 0);
     m.insert("|", 1);
-    m.insert("(", 2);
-    m.insert(")", 2);
+    m.insert("=", 2);
+    m.insert("!", 2);
     m
 });
 
@@ -356,12 +356,34 @@ impl RuleParser {
     }
 
     fn find_lowest_prec_op_index(tokens: &Vec<String>) -> usize {
-        let mut op_index: usize = 0;
+        let mut lowest_prec_token: Option<(usize, TokenDepth, i32)> = None; // Index, parenthesis depth and precedence
         let mapped_tokens: MappedRuleTokens = Self::map_rule_tokens(&tokens);
+
         for (i, token) in mapped_tokens.iter().enumerate() {
-            continue;
+            let paren_depth: i32 = token.2;
+            let token: &String = &token.0;
+
+            if let Some(&token_prec) = TOKEN_PRECEDENCE.get(token) {
+                let mut reassign: bool = false;
+
+                if let Some(lowest) = lowest_prec_token {
+                    let lowest_prec_token_depth: i32 = lowest.1;
+                    if paren_depth < lowest_prec_token_depth {
+                        reassign = true;
+                    } else if lowest_prec_token_depth == paren_depth && token_prec < lowest.2 {
+                        reassign = true;
+                    }
+                } else {
+                    reassign = true;
+                }
+
+                if reassign {
+                    lowest_prec_token = Some((i, paren_depth, token_prec));
+                }
+            }
         }
-        0
+
+        lowest_prec_token.map(|(idx, _, _)| idx).unwrap_or(0)
     }
 
     fn contains_logical_op(tokens: &[String]) -> bool {
@@ -658,7 +680,10 @@ mod tests {
         assert!(result.is_ok());
         let tokens = result.unwrap();
         assert_eq!(tokens.len(), 7);
-        assert_eq!(tokens, vec!["colour", "=", "red", "&", "size", "=", "large"]);
+        assert_eq!(
+            tokens,
+            vec!["colour", "=", "red", "&", "size", "=", "large"]
+        );
     }
 
     #[test]
@@ -669,7 +694,10 @@ mod tests {
         assert!(result.is_ok());
         let tokens = result.unwrap();
         assert_eq!(tokens.len(), 7);
-        assert_eq!(tokens, vec!["colour", "=", "red", "|", "colour", "=", "blue"]);
+        assert_eq!(
+            tokens,
+            vec!["colour", "=", "red", "|", "colour", "=", "blue"]
+        );
     }
 
     #[test]
@@ -693,7 +721,9 @@ mod tests {
         assert_eq!(tokens.len(), 13);
         assert_eq!(
             tokens,
-            vec!["(", "(", "colour", "=", "red", ")", "&", "(", "size", "=", "large", ")", ")"]
+            vec![
+                "(", "(", "colour", "=", "red", ")", "&", "(", "size", "=", "large", ")", ")"
+            ]
         );
     }
 
